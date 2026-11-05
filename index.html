@@ -50,14 +50,11 @@ h1{font-size:21px;margin:0}h2{font-size:15px;margin:0}p,.hint{font-size:13px;lin
 .title-row h1{flex:1;min-width:0}
 .title-row .count{flex:none;text-align:right}
 
-/* ラベルと入力/画像の横並び */
-.field-row{display:flex;align-items:center;gap:12px;width:100%}
-.field-row>.step-label{flex:none;min-width:6.5em}
-.field-row>input[type=text]{flex:1;min-width:0}
-.field-row>#iconPreview{flex:none!important;margin-left:auto}
-
-#iconPreview{width:76px;height:76px;aspect-ratio:1/1;object-fit:cover;border-radius:18px;border:1px solid var(--line);background:#0d1015;cursor:pointer;-webkit-tap-highlight-color:transparent;transition:border-color .15s,opacity .15s}
+/* アプリ設定（アイコン＋アプリ名・中央寄せ・ホーム画面風） */
+.app-setting{display:flex;flex-direction:column;align-items:center;gap:14px;padding:8px 0 4px}
+#iconPreview{width:104px;height:104px;aspect-ratio:1/1;object-fit:cover;border-radius:24px;border:1px solid var(--line);background:#0d1015;cursor:pointer;-webkit-tap-highlight-color:transparent;transition:border-color .15s,opacity .15s;box-shadow:0 6px 20px #00000066}
 #iconPreview:active{border-color:var(--accent);opacity:.85}
+#setupName{max-width:280px;text-align:center;padding:10px 14px;border-radius:12px}
 #htmlSetup{height:40vh;min-height:220px;font-family:ui-monospace,monospace;font-size:16px;line-height:1.45}
 
 /* iframe（実行画面）を全画面に配置 */
@@ -102,16 +99,11 @@ h1{font-size:21px;margin:0}h2{font-size:15px;margin:0}p,.hint{font-size:13px;lin
 <p class="subtitle">作成したHTMLをアプリ化できます</p>
 </header>
 <section class="card">
-<div class="field-row">
-<label for="setupName" class="step-label">① アプリ名</label>
-<input id="setupName" type="text" maxlength="60" placeholder="入力してください">
-</div>
-</section>
-<section class="card">
-<div class="field-row">
-<label class="step-label">② アイコン</label>
+<label class="step-label">① アプリ設定</label>
+<div class="app-setting">
 <img id="iconPreview" alt="アイコン" role="button" tabindex="0" aria-label="アイコン画像を選択">
 <input id="iconFile" type="file" accept="image/*" hidden>
+<input id="setupName" type="text" placeholder="入力してください" autocomplete="off" autocapitalize="off" spellcheck="false">
 </div>
 </section>
 <section class="card"><p class="step share-step"><span>③</span><svg class="share-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/><path d="M16 6l-4-4-4 4" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/><path d="M12 2v13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg><span>を選択して「ホーム画面に追加」</span></p></section>
@@ -224,7 +216,6 @@ function generateDefaultIcon(){
       const y=PAD+row*(TILE+GAP);
       const isPlus=pattern[row][col]===1;
 
-      /* 影（黒背景では僅かだが、わずかな奥行きを付与） */
       ctx.save();
       ctx.shadowColor=isPlus?'rgba(160,190,255,0.18)':'rgba(0,0,0,0.5)';
       ctx.shadowBlur=S*0.02;
@@ -244,7 +235,6 @@ function generateDefaultIcon(){
       ctx.fill();
       ctx.restore();
 
-      /* 上辺ハイライト & 下辺の内側シャドウで立体感を付与 */
       ctx.save();
       roundRectPath(ctx,x,y,TILE,TILE,TR);
       ctx.clip();
@@ -268,6 +258,17 @@ function generateDefaultIcon(){
 }
 const defaultIcon=generateDefaultIcon();
 
+/* アプリ名の文字数制限: 全角文字(日本語含む)は8文字、半角(英語含む)は12文字 */
+function limitAppName(v){
+  const chars=Array.from(String(v==null?'':v));
+  const hasWide=chars.some(c=>{
+    const cp=c.codePointAt(0);
+    return cp>0x7F;
+  });
+  const max=hasWide?8:12;
+  return chars.slice(0,max).join('');
+}
+
 let db,s={name:'',icon:'',html:'',previousHtml:'',memo:''},memoTimer,toastTimer,ex=null,ey=null;
 function toast(t){$('toast').textContent=t;$('toast').classList.add('show');clearTimeout(toastTimer);toastTimer=setTimeout(()=>$('toast').classList.remove('show'),2300)}
 function openDB(){return new Promise((ok,no)=>{let r=indexedDB.open(DB,1);r.onupgradeneeded=()=>r.result.createObjectStore(STORE);r.onsuccess=()=>ok(r.result);r.onerror=()=>no(r.error)})}
@@ -289,7 +290,6 @@ function injectIframeCSS() {
       style.textContent = '*, *::before, *::after { -webkit-backdrop-filter: none !important; backdrop-filter: none !important; }';
       doc.head.appendChild(style);
 
-      // iframeの背景色を取得して親アプリに適用（境界線を目立たなくする）
       var bg = doc.documentElement.style.backgroundColor || doc.body.style.backgroundColor || window.getComputedStyle(doc.body).backgroundColor;
       if (!bg || bg === 'rgba(0, 0, 0, 0)' || bg === 'transparent') {
         bg = window.getComputedStyle(doc.documentElement).backgroundColor;
@@ -319,7 +319,7 @@ function memoBullet(v){
 }
 
 function render(){
-  $('setupName').value=s.name;
+  $('setupName').value=limitAppName(s.name);
   $('iconPreview').src=s.icon||defaultIcon;
   $('memo').value=memoBullet(s.memo);
   $('htmlCode').value=s.html;$('htmlSetup').value=s.html;
@@ -367,7 +367,22 @@ async function importBackup(f){try{let o=JSON.parse(await f.text());if(o.format!
   if(o.localStorage&&confirm('バックアップ内のlocalStorageも復元しますか？'))for(let[k,v]of Object.entries(o.localStorage))if(typeof v==='string')localStorage.setItem(k,v);
   render();toast('復元しました。IndexedDBの実行データは対象外です')}catch(e){alert('復元できませんでした：'+e.message)}}
 
-$('setupName').addEventListener('input',()=>{s.name=$('setupName').value.trim();meta()});
+/* アプリ名入力（日本語8文字 / 英語12文字の制限） */
+const nameInput=$('setupName');
+function syncName(){
+  const limited=limitAppName(nameInput.value);
+  if(limited!==nameInput.value){
+    const pos=nameInput.selectionStart;
+    nameInput.value=limited;
+    try{const p=Math.min(pos,limited.length);nameInput.setSelectionRange(p,p)}catch(e){}
+  }
+  s.name=limited;
+  meta();
+}
+nameInput.addEventListener('input',syncName);
+nameInput.addEventListener('compositionend',syncName);
+nameInput.addEventListener('blur',syncName);
+
 $('iconFile').onchange=e=>chooseIcon(e.target.files?.[0]);
 
 /* アイコン画像タップでファイル選択を開く */
