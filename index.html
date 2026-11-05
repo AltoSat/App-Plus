@@ -38,15 +38,25 @@ textarea{resize:vertical}
 .card{max-width:560px;width:100%;margin:0 auto 14px;background:var(--panel);border:1px solid var(--line);border-radius:18px;padding:20px;display:flex;flex-direction:column;gap:14px;box-shadow:0 8px 28px #00000055}
 h1{font-size:21px;margin:0}h2{font-size:15px;margin:0}p,.hint{font-size:13px;line-height:1.6;color:var(--muted);margin:0}
 .setup-head{max-width:560px;width:100%;margin:0 auto 14px;padding:0 4px}
-.step{margin:0;font-size:14px;font-weight:600;color:var(--text);line-height:1.6}
+.setup-head .subtitle{margin:6px 0 0;font-size:14px;color:var(--muted);line-height:1.5;font-weight:400}
+
+/* ①〜③ 統一ステップラベル */
+.step-label{font-size:16px;font-weight:650;color:var(--text);line-height:1.6}
+.step{margin:0;font-size:16px;font-weight:650;color:var(--text);line-height:1.6}
 .share-step{display:flex;align-items:center;gap:.4em}
 .share-icon{width:1.5em;height:1.5em;flex:none;color:var(--text);display:block}
+
 .title-row{display:flex;justify-content:space-between;align-items:center;gap:10px}
 .title-row h1{flex:1;min-width:0}
 .title-row .count{flex:none;text-align:right}
-.field{display:flex;flex-direction:column;gap:7px}
-.field label{font-size:13px;font-weight:650;color:#a9b4c6}
-#iconPreview{flex:none!important;width:76px;height:76px;aspect-ratio:1/1;object-fit:cover;border-radius:18px;border:1px solid var(--line);background:#0d1015;cursor:pointer;-webkit-tap-highlight-color:transparent;transition:border-color .15s,opacity .15s}
+
+/* ラベルと入力/画像の横並び */
+.field-row{display:flex;align-items:center;gap:12px;width:100%}
+.field-row>.step-label{flex:none;min-width:6.5em}
+.field-row>input[type=text]{flex:1;min-width:0}
+.field-row>#iconPreview{flex:none!important;margin-left:auto}
+
+#iconPreview{width:76px;height:76px;aspect-ratio:1/1;object-fit:cover;border-radius:18px;border:1px solid var(--line);background:#0d1015;cursor:pointer;-webkit-tap-highlight-color:transparent;transition:border-color .15s,opacity .15s}
 #iconPreview:active{border-color:var(--accent);opacity:.85}
 #htmlSetup{height:40vh;min-height:220px;font-family:ui-monospace,monospace;font-size:16px;line-height:1.45}
 
@@ -87,20 +97,21 @@ h1{font-size:21px;margin:0}h2{font-size:15px;margin:0}p,.hint{font-size:13px;lin
 <div id="app">
 <div id="stage">
 <div id="setup">
-<header class="setup-head"><h1>アプリ＋</h1></header>
+<header class="setup-head">
+<h1>アプリ＋</h1>
+<p class="subtitle">作成したHTMLをアプリ化できます</p>
+</header>
 <section class="card">
-<div class="field">
-<label for="setupName">① アプリ名</label>
+<div class="field-row">
+<label for="setupName" class="step-label">① アプリ名</label>
 <input id="setupName" type="text" maxlength="60" placeholder="入力してください">
 </div>
 </section>
 <section class="card">
-<div class="field">
-<label>② アプリアイコン</label>
-<div class="row" style="align-items:center;justify-content:center">
+<div class="field-row">
+<label class="step-label">② アイコン</label>
 <img id="iconPreview" alt="アイコン" role="button" tabindex="0" aria-label="アイコン画像を選択">
 <input id="iconFile" type="file" accept="image/*" hidden>
-</div>
 </div>
 </section>
 <section class="card"><p class="step share-step"><span>③</span><svg class="share-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/><path d="M16 6l-4-4-4 4" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/><path d="M12 2v13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg><span>を選択して「ホーム画面に追加」</span></p></section>
@@ -138,7 +149,15 @@ const mq=window.matchMedia;
 const standalone=(mq&&(mq('(display-mode: standalone)').matches||mq('(display-mode: fullscreen)').matches||mq('(display-mode: minimal-ui)').matches||mq('(display-mode: window-controls-overlay)').matches))||navigator.standalone===true;
 const isIOS=/iPad|iPhone|iPod/.test(navigator.userAgent)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);
 
+/* ピンチズーム防止（iOS Safari） */
 ['gesturestart','gesturechange','gestureend'].forEach(function(t){document.addEventListener(t,function(e){if(e.cancelable)e.preventDefault()},{passive:false})});
+
+/* ピンチズーム防止（マルチタッチ全般） */
+document.addEventListener('touchmove',function(e){
+  if(e.touches.length>1&&e.cancelable)e.preventDefault();
+},{passive:false});
+
+/* ダブルタップズーム防止 */
 let lastTapEnd=0;
 document.addEventListener('touchend',function(e){
   const now=Date.now();const editing=e.target&&e.target.closest&&e.target.closest('input,textarea');
