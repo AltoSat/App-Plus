@@ -125,6 +125,9 @@ h1{font-size:21px;margin:0}h2{font-size:15px;margin:0}p,.hint{font-size:13px;lin
 <textarea id="htmlSetup" spellcheck="false" placeholder="&lt;!doctype html&gt; から始まるHTML"></textarea>
 <button class="primary" id="firstSave">登録</button>
 </section>
+<section class="card" id="restoreCard" hidden>
+<button id="setupRestore">復元</button>
+</section>
 </div>
 <div id="runtime"><iframe id="runner" title="登録HTML"></iframe></div>
 <div id="shade"></div>
@@ -331,7 +334,14 @@ function openDB(){return new Promise((ok,no)=>{let r=indexedDB.open(DB,1);r.onup
 function get(){return new Promise((ok,no)=>{let r=db.transaction(STORE).objectStore(STORE).get(KEY);r.onsuccess=()=>ok(r.result||null);r.onerror=()=>no(r.error)})}
 function put(){return new Promise((ok,no)=>{let t=db.transaction(STORE,'readwrite');t.objectStore(STORE).put({html:s.html,previousHtml:s.previousHtml,memo:s.memo,lastBackupAt:s.lastBackupAt,lastBackupSize:s.lastBackupSize},KEY);t.oncomplete=ok;t.onerror=()=>no(t.error)})}
 function meta(){const n=s.name||'アプリ＋';document.title=n;let m=document.querySelector('meta[name="apple-mobile-web-app-title"]');if(m)m.content=n;let l=document.querySelector('link[rel="apple-touch-icon"]');if(!l){l=document.createElement('link');l.rel='apple-touch-icon';document.head.append(l)}l.href=s.icon||defaultIcon}
-function stage(which){$('setup').hidden=which!=='setup';$('htmlStep').hidden=which!=='html';$('stage').hidden=which==='run';$('runtime').style.display=which==='run'?'block':'none';$('edge').style.display=which==='run'?'block':'none'}
+function stage(which){
+  $('setup').hidden=which!=='setup';
+  $('htmlStep').hidden=which!=='html';
+  $('restoreCard').hidden=which!=='html';
+  $('stage').hidden=which==='run';
+  $('runtime').style.display=which==='run'?'block':'none';
+  $('edge').style.display=which==='run'?'block':'none';
+}
 
 /* iframe内のCSS注入＆背景色抽出 */
 function injectIframeCSS() {
@@ -491,6 +501,9 @@ $('iconPreview').addEventListener('click',()=>$('iconFile').click());
 $('iconPreview').addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();$('iconFile').click()}});
 
 $('firstSave').onclick=async()=>{let v=$('htmlSetup').value;if(!v.trim()){toast('HTMLを入力してください');return}s.html=v;s.previousHtml='';s.memo='';await put();render();toast('HTMLを登録しました')};
+
+/* 未登録画面の復元ボタン: ドロワー内のバックアップファイル選択を共有 */
+$('setupRestore').onclick=()=>$('backupFile').click();
 
 $('htmlSetup').addEventListener('input',counts);$('htmlCode').addEventListener('input',counts);
 $('saveHtml').onclick=()=>saveHtml().catch(e=>toast('保存に失敗しました：'+e.message));
