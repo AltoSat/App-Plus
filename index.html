@@ -90,7 +90,8 @@ h1{font-size:21px;margin:0}h2{font-size:15px;margin:0}p,.hint{font-size:13px;lin
 .btns4 button{padding-left:4px;padding-right:4px;font-size:15px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 
 #memo{height:36vh;min-height:230px;max-height:58vh;font-family:-apple-system,sans-serif}
-#htmlCode{height:46vh;min-height:220px;font-family:ui-monospace,monospace;font-size:16px;line-height:1.45}
+/* HTML編集の入力欄は改善メモと同じ高さに統一 */
+#htmlCode{height:36vh;min-height:230px;max-height:58vh;font-family:ui-monospace,monospace;font-size:16px;line-height:1.45}
 .count{text-align:right;font-size:12px;color:var(--muted);white-space:nowrap}
 #storageBar{height:9px;border-radius:9px;background:#212a38;overflow:hidden}
 #storageFill{height:100%;width:0;background:var(--accent);transition:width .3s}
@@ -143,10 +144,10 @@ h1{font-size:21px;margin:0}h2{font-size:15px;margin:0}p,.hint{font-size:13px;lin
 <div class="title-row"><h2>HTML編集</h2><div id="htmlCount" class="count">0文字</div></div>
 <textarea id="htmlCode" spellcheck="false" placeholder="HTMLコード"></textarea>
 <div class="row btns4">
-<button class="primary" id="saveHtml">保存</button>
-<button id="copyHtml">コピー</button>
-<button id="clearHtml">クリア</button>
+<button class="danger" id="clearHtml">クリア</button>
 <button id="restoreHtml">復元</button>
+<button id="copyHtml">コピー</button>
+<button class="primary" id="saveHtml">保存</button>
 </div>
 </div>
 </section>
@@ -395,7 +396,17 @@ function tab(id){document.querySelectorAll('.tab').forEach(b=>b.classList.toggle
 async function png(f){let b=await createImageBitmap(f),z=Math.min(b.width,b.height),c=document.createElement('canvas');c.width=c.height=512;c.getContext('2d').drawImage(b,(b.width-z)/2,(b.height-z)/2,z,z,0,0,512,512);return c.toDataURL('image/png')}
 async function chooseIcon(f){if(!f)return;try{s.icon=await png(f);$('iconPreview').src=s.icon;meta();toast('アイコンを登録しました')}catch{toast('画像を読み込めませんでした')}}
 function bytes(n){let u=['B','KB','MB','GB'],i=0;while(n>=1024&&i<3){n/=1024;i++}return n.toFixed(i?1:0)+' '+u[i]}
-async function storage(){try{let e=await navigator.storage.estimate(),u=e.usage||0,q=e.quota||0,p=q?100*u/q:0;$('storageText').textContent=`推定使用量 ${bytes(u)} ／ 割当量 ${bytes(q)}（${p.toFixed(1)}%）`;$('storageFill').style.width=Math.min(100,p)+'%'}catch{$('storageText').textContent='取得できません'}}
+
+/* ストレージ表示: 分母は100MB固定 */
+const STORAGE_CAP=100*1024*1024;
+async function storage(){
+  try{
+    let e=await navigator.storage.estimate(),u=e.usage||0;
+    const p=Math.min(100,100*u/STORAGE_CAP);
+    $('storageText').textContent=`推定使用量 ${bytes(u)} ／ 100 MB（${p.toFixed(1)}%）`;
+    $('storageFill').style.width=p+'%';
+  }catch{$('storageText').textContent='取得できません'}
+}
 
 /* バックアップ目安表示用: 現在のアプリデータサイズ（バイト） */
 function appBytes(){
@@ -408,7 +419,7 @@ function fmtDate(iso){
   return `${d.getFullYear()}/${p(d.getMonth()+1)}/${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`;
 }
 
-/* バックアップ枠: 前回からの増減サイズ / 復元枠: 前回のバックアップ日時 */
+/* バックアップ枠: 前回のバックアップからの増減 / 復元枠: 前回のバックアップ日時 */
 function backupInfo(){
   const bEl=$('backupInfo');
   if(bEl){
@@ -418,7 +429,7 @@ function backupInfo(){
       const diff=appBytes()-(s.lastBackupSize||0);
       const kb=Math.abs(diff)/1024;
       const sign=diff<0?'−':'+';
-      bEl.textContent=`前回から ${sign}${kb.toFixed(1)}KB`;
+      bEl.textContent=`前回のバックアップから ${sign}${kb.toFixed(1)}KB`;
     }
   }
   const rEl=$('lastBackupInfo');
