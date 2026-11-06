@@ -85,6 +85,10 @@ h1{font-size:21px;margin:0}h2{font-size:15px;margin:0}p,.hint{font-size:13px;lin
 .section{background:var(--panel);border:1px solid var(--line);border-radius:15px;padding:14px;display:flex;flex-direction:column;gap:10px;min-width:0}
 .row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
 .row>*{flex:1;min-width:0}
+
+/* HTML編集の4ボタンを横一列に */
+.btns4 button{padding-left:4px;padding-right:4px;font-size:15px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+
 #memo{height:36vh;min-height:230px;max-height:58vh;font-family:-apple-system,sans-serif}
 #htmlCode{height:46vh;min-height:220px;font-family:ui-monospace,monospace;font-size:16px;line-height:1.45}
 .count{text-align:right;font-size:12px;color:var(--muted);white-space:nowrap}
@@ -138,20 +142,28 @@ h1{font-size:21px;margin:0}h2{font-size:15px;margin:0}p,.hint{font-size:13px;lin
 <div class="section">
 <div class="title-row"><h2>HTML編集</h2><div id="htmlCount" class="count">0文字</div></div>
 <textarea id="htmlCode" spellcheck="false" placeholder="HTMLコード"></textarea>
-<div class="row"><button class="primary" id="saveHtml">保存</button></div>
-<div class="row"><button id="copyHtml">コピー</button></div>
-<div class="row"><button id="clearHtml">クリア</button></div>
-<div class="row"><button id="restoreHtml">復元</button></div>
+<div class="row btns4">
+<button class="primary" id="saveHtml">保存</button>
+<button id="copyHtml">コピー</button>
+<button id="clearHtml">クリア</button>
+<button id="restoreHtml">復元</button>
+</div>
 </div>
 </section>
 <section class="panel" id="backupPanel">
 <div class="section">
-<div class="title-row"><h2>バックアップ・復元</h2></div>
+<div class="title-row"><h2>バックアップ</h2></div>
 <div id="storageText" class="hint">—</div>
 <div id="storageBar"><div id="storageFill"></div></div>
 <div id="backupInfo" class="hint">—</div>
 <div class="row">
 <button id="export">バックアップ</button>
+</div>
+</div>
+<div class="section">
+<div class="title-row"><h2>復元</h2></div>
+<div id="lastBackupInfo" class="hint">—</div>
+<div class="row">
 <button id="import">復元</button>
 </div>
 <input id="backupFile" type="file" accept=".json,application/json" hidden>
@@ -395,14 +407,24 @@ function fmtDate(iso){
   const p=n=>String(n).padStart(2,'0');
   return `${d.getFullYear()}/${p(d.getMonth()+1)}/${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`;
 }
+
+/* バックアップ枠: 前回からの増減サイズ / 復元枠: 前回のバックアップ日時 */
 function backupInfo(){
-  const el=$('backupInfo');
-  if(!el)return;
-  if(!s.lastBackupAt){el.textContent='前回のバックアップ：まだありません';return}
-  const diff=appBytes()-(s.lastBackupSize||0);
-  const kb=Math.abs(diff)/1024;
-  const sign=diff>0?'+':(diff<0?'−':'±');
-  el.textContent=`前回のバックアップ：${fmtDate(s.lastBackupAt)}（前回から ${sign}${kb.toFixed(1)}KB）`;
+  const bEl=$('backupInfo');
+  if(bEl){
+    if(!s.lastBackupAt){
+      bEl.textContent='前回のバックアップはまだありません';
+    }else{
+      const diff=appBytes()-(s.lastBackupSize||0);
+      const kb=Math.abs(diff)/1024;
+      const sign=diff<0?'−':'+';
+      bEl.textContent=`前回から ${sign}${kb.toFixed(1)}KB`;
+    }
+  }
+  const rEl=$('lastBackupInfo');
+  if(rEl){
+    rEl.textContent=s.lastBackupAt?`前回のバックアップ：${fmtDate(s.lastBackupAt)}`:'前回のバックアップ：まだありません';
+  }
 }
 
 function download(blob,name){let u=URL.createObjectURL(blob),a=document.createElement('a');a.href=u;a.download=name;document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(u),1500)}
