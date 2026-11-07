@@ -62,11 +62,11 @@ h1{font-size:21px;margin:0}h2{font-size:15px;margin:0}p,.hint{font-size:13px;lin
 #htmlSetup{height:40vh;min-height:220px;font-family:ui-monospace,monospace;font-size:16px;line-height:1.45}
 
 /* iframe（実行画面）を全画面に配置 */
-#runtime{position:absolute;inset:0;display:none;background:var(--bg);z-index:5;transition:background-color .2s}
-#runner{position:absolute;inset:0;width:100%;height:100%;border:0;display:block;background:transparent}
+#runtime{position:absolute;inset:0;display:none;background:var(--bg);z-index:5;transition:background-color .2s;touch-action:auto}
+#runner{position:absolute;inset:0;width:100%;height:100%;border:0;display:block;background:transparent;touch-action:auto}
 
 /* 右端のスワイプ用エッジ */
-#edge{position:absolute;z-index:20;right:0;top:calc(50% - 60px);width:28px;height:120px;min-height:0;padding:0;border:0;border-radius:0;background:transparent;touch-action:pan-y;-webkit-tap-highlight-color:transparent}
+#edge{position:absolute;z-index:20;right:0;top:calc(50% - 60px);width:16px;height:120px;min-height:0;padding:0;border:0;border-radius:0;background:transparent;touch-action:pan-y;-webkit-tap-highlight-color:transparent}
 #edge::before{content:"";position:absolute;right:0;top:12px;bottom:12px;width:3px;border-radius:3px 0 0 3px;background:#ffffff1f;transition:width .18s,background .18s}
 #edge.pull::before,#edge:active::before{width:5px;background:#4d8df7b3}
 
@@ -86,10 +86,19 @@ h1{font-size:21px;margin:0}h2{font-size:15px;margin:0}p,.hint{font-size:13px;lin
 .row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
 .row>*{flex:1;min-width:0}
 
+/* 改善メモ（チェックボックス式） */
+.memo-list{display:flex;flex-direction:column;gap:6px}
+.memo-item{display:flex;align-items:flex-start;gap:8px;background:#0d1015;border:1px solid var(--line);border-radius:10px;padding:8px 10px;min-width:0}
+.memo-check{flex:none;width:22px;height:22px;margin:3px 0 0;accent-color:var(--accent);cursor:pointer;touch-action:manipulation}
+.memo-text{flex:1;min-width:0;border:0;background:transparent;padding:2px 0;color:var(--text);font-size:16px;font-family:inherit;resize:none;overflow:hidden;line-height:1.5;min-height:1.5em;-webkit-user-select:text;user-select:text;touch-action:pan-y}
+.memo-text:focus{outline:none}
+.memo-del{flex:none;min-height:0;width:28px;height:28px;padding:0;border-radius:50%;background:transparent;border:0;color:var(--muted);font-size:18px;line-height:1;display:flex;align-items:center;justify-content:center;align-self:center;touch-action:manipulation}
+.memo-del:active{background:#2a161c;color:#ff9aa8}
+.memo-empty{color:var(--muted);font-size:13px;padding:12px;text-align:center;background:#0d1015;border:1px dashed var(--line);border-radius:10px}
+
 /* HTML編集の4ボタンを横一列に */
 .btns4 button{padding-left:4px;padding-right:4px;font-size:15px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 
-#memo{height:36vh;min-height:230px;max-height:58vh;font-family:-apple-system,sans-serif}
 /* HTML編集の入力欄は改善メモと同じ高さに統一 */
 #htmlCode{height:36vh;min-height:230px;max-height:58vh;font-family:ui-monospace,monospace;font-size:16px;line-height:1.45}
 .count{text-align:right;font-size:12px;color:var(--muted);white-space:nowrap}
@@ -138,8 +147,9 @@ h1{font-size:21px;margin:0}h2{font-size:15px;margin:0}p,.hint{font-size:13px;lin
 <section class="panel active" id="memoPanel">
 <div class="section">
 <div class="title-row"><h2>改善メモ</h2><div id="memoCount" class="count">0 / 10,000文字</div></div>
-<textarea id="memo" maxlength="10000" placeholder="改善したい点を箇条書きで入力してください。自動保存されます。"></textarea>
-<div class="row"><button class="danger" id="clearMemo">クリア</button><button class="primary btn-share" id="improve"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/><path d="M16 6l-4-4-4 4" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/><path d="M12 2v13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg><span>AIに依頼</span></button></div>
+<div id="memoList" class="memo-list"></div>
+<div class="row"><button id="addMemo">＋ 項目を追加</button></div>
+<div class="row"><button class="danger" id="clearMemo">クリア</button><button id="copyMemo">コピー</button><button class="primary btn-share" id="improve"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/><path d="M16 6l-4-4-4 4" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/><path d="M12 2v13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg><span>AIに依頼</span></button></div>
 </div>
 </section>
 <section class="panel" id="htmlPanel">
@@ -187,6 +197,10 @@ const isIOS=/iPad|iPhone|iPod/.test(navigator.userAgent)||(navigator.platform===
 
 /* ピンチズーム防止（iOS Safari） */
 ['gesturestart','gesturechange','gestureend'].forEach(function(t){document.addEventListener(t,function(e){if(e.cancelable)e.preventDefault()},{passive:false})});
+
+/* ドラッグ&ドロップを親ページで許可（iframe内アプリのD&D干渉対策） */
+document.addEventListener('dragover',function(e){if(e.cancelable)e.preventDefault()},false);
+document.addEventListener('drop',function(e){if(e.cancelable)e.preventDefault()},false);
 
 /* エッジスワイプ（Safariの戻る/進む）防止用にタッチ開始位置を記録 */
 let edgeStartX=null,edgeStartY=null;
@@ -328,11 +342,11 @@ function limitAppName(v){
   return chars.slice(0,max).join('');
 }
 
-let db,s={name:'',icon:'',html:'',previousHtml:'',memo:'',lastBackupAt:null,lastBackupSize:0},memoTimer,toastTimer,ex=null,ey=null;
+let db,s={name:'',icon:'',html:'',previousHtml:'',memo:'',memoChecked:[],lastBackupAt:null,lastBackupSize:0},memoTimer,toastTimer,ex=null,ey=null,edgeState=null;
 function toast(t){$('toast').textContent=t;$('toast').classList.add('show');clearTimeout(toastTimer);toastTimer=setTimeout(()=>$('toast').classList.remove('show'),2300)}
 function openDB(){return new Promise((ok,no)=>{let r=indexedDB.open(DB,1);r.onupgradeneeded=()=>r.result.createObjectStore(STORE);r.onsuccess=()=>ok(r.result);r.onerror=()=>no(r.error)})}
 function get(){return new Promise((ok,no)=>{let r=db.transaction(STORE).objectStore(STORE).get(KEY);r.onsuccess=()=>ok(r.result||null);r.onerror=()=>no(r.error)})}
-function put(){return new Promise((ok,no)=>{let t=db.transaction(STORE,'readwrite');t.objectStore(STORE).put({html:s.html,previousHtml:s.previousHtml,memo:s.memo,lastBackupAt:s.lastBackupAt,lastBackupSize:s.lastBackupSize},KEY);t.oncomplete=ok;t.onerror=()=>no(t.error)})}
+function put(){return new Promise((ok,no)=>{let t=db.transaction(STORE,'readwrite');t.objectStore(STORE).put({html:s.html,previousHtml:s.previousHtml,memo:s.memo,memoChecked:s.memoChecked,lastBackupAt:s.lastBackupAt,lastBackupSize:s.lastBackupSize},KEY);t.oncomplete=ok;t.onerror=()=>no(t.error)})}
 function meta(){const n=s.name||'アプリ＋';document.title=n;let m=document.querySelector('meta[name="apple-mobile-web-app-title"]');if(m)m.content=n;let l=document.querySelector('link[rel="apple-touch-icon"]');if(!l){l=document.createElement('link');l.rel='apple-touch-icon';document.head.append(l)}l.href=s.icon||defaultIcon}
 function stage(which){
   $('setup').hidden=which!=='setup';
@@ -374,20 +388,145 @@ function setRunner(html) {
   $('runner').onload = injectIframeCSS;
 }
 
-function memoBullet(v){
-  const text=String(v==null?'':v);
-  if(!text.trim())return '・';
-  const lines=text.split('\n').map(function(line){
-    const body=line.replace(/^[\s\u3000・•･]+/,'').replace(/[\s\u3000]+$/,'');
-    return body?'・'+body:'';
+/* ===== 改善メモ（チェックボックス式） ===== */
+let memoItems = [];
+
+function normalizeMemoText(v){
+  return String(v==null?'':v).replace(/^[\s\u3000・•･]+/,'').replace(/[\s\u3000]+$/,'');
+}
+
+function loadMemoItems(){
+  const text = s.memo || '';
+  if (!text.trim()) { memoItems = []; return; }
+  const lines = text.split('\n');
+  const checks = Array.isArray(s.memoChecked) ? s.memoChecked : [];
+  memoItems = lines.map(function(line, i){
+    return { text: normalizeMemoText(line), checked: !!checks[i] };
   });
-  return lines.join('\n');
+}
+
+function saveMemoItemsNow(){
+  s.memo = memoItems.map(function(it){ return '・' + it.text; }).join('\n');
+  s.memoChecked = memoItems.map(function(it){ return !!it.checked; });
+  return put();
+}
+
+function saveMemoItemsSoon(){
+  clearTimeout(memoTimer);
+  memoTimer = setTimeout(function(){
+    saveMemoItemsNow().catch(function(){ toast('メモを保存できませんでした'); });
+  }, 500);
+}
+
+function updateMemoCount(){
+  const len = memoItems.reduce(function(sum, it){ return sum + Array.from(it.text).length; }, 0);
+  $('memoCount').textContent = len.toLocaleString() + ' / 10,000文字';
+}
+
+function resizeMemoText(el){
+  el.style.height = 'auto';
+  el.style.height = Math.min(el.scrollHeight, 220) + 'px';
+}
+
+function createMemoRow(item, idx){
+  const row = document.createElement('div');
+  row.className = 'memo-item';
+
+  const cb = document.createElement('input');
+  cb.type = 'checkbox';
+  cb.className = 'memo-check';
+  cb.checked = !!item.checked;
+  cb.addEventListener('change', function(){
+    item.checked = cb.checked;
+    saveMemoItemsSoon();
+  });
+
+  const ta = document.createElement('textarea');
+  ta.className = 'memo-text';
+  ta.rows = 1;
+  ta.value = item.text;
+  ta.placeholder = '改善点を入力';
+  ta.spellcheck = false;
+  ta.addEventListener('input', function(){
+    item.text = ta.value;
+    const total = memoItems.reduce(function(sum, it){ return sum + Array.from(it.text).length; }, 0);
+    if (total > 10000) {
+      const excess = total - 10000;
+      const chars = Array.from(ta.value);
+      ta.value = excess >= chars.length ? '' : chars.slice(0, chars.length - excess).join('');
+      item.text = ta.value;
+      toast('最大10,000文字です');
+    }
+    resizeMemoText(ta);
+    updateMemoCount();
+    saveMemoItemsSoon();
+  });
+  ta.addEventListener('keydown', function(e){
+    if (e.isComposing || e.keyCode === 229) return;
+    if (e.key === 'Enter' && !e.shiftKey && !e.ctrlKey && !e.metaKey) {
+      e.preventDefault();
+      memoItems.splice(idx + 1, 0, { text: '', checked: false });
+      saveMemoItemsSoon();
+      renderMemoList(idx + 1);
+    } else if (e.key === 'Backspace' && ta.value === '') {
+      e.preventDefault();
+      memoItems.splice(idx, 1);
+      saveMemoItemsSoon();
+      renderMemoList(Math.max(0, idx - 1));
+    }
+  });
+  ta.addEventListener('blur', function(){
+    clearTimeout(memoTimer);
+    saveMemoItemsNow().catch(function(){ toast('メモを保存できませんでした'); });
+  });
+
+  const del = document.createElement('button');
+  del.type = 'button';
+  del.className = 'memo-del';
+  del.setAttribute('aria-label', '削除');
+  del.textContent = '×';
+  del.addEventListener('click', function(){
+    memoItems.splice(idx, 1);
+    saveMemoItemsSoon();
+    renderMemoList(Math.min(idx, memoItems.length - 1));
+  });
+
+  row.append(cb, ta, del);
+  return row;
+}
+
+function renderMemoList(focusIdx){
+  const list = $('memoList');
+  list.innerHTML = '';
+  if (!memoItems.length) {
+    const empty = document.createElement('div');
+    empty.className = 'memo-empty';
+    empty.textContent = '「＋ 項目を追加」から改善点を追加してください';
+    list.append(empty);
+  } else {
+    memoItems.forEach(function(item, idx){
+      list.append(createMemoRow(item, idx));
+    });
+    requestAnimationFrame(function(){
+      list.querySelectorAll('.memo-text').forEach(function(ta){ resizeMemoText(ta); });
+    });
+  }
+  updateMemoCount();
+  if (focusIdx !== undefined && focusIdx >= 0 && focusIdx < memoItems.length) {
+    const tas = list.querySelectorAll('.memo-text');
+    const ta = tas[focusIdx];
+    if (ta) {
+      ta.focus();
+      try { ta.setSelectionRange(ta.value.length, ta.value.length); } catch (e) {}
+    }
+  }
 }
 
 function render(){
   $('setupName').value=limitAppName(s.name);
   $('iconPreview').src=s.icon||defaultIcon;
-  $('memo').value=memoBullet(s.memo);
+  loadMemoItems();
+  renderMemoList();
   $('htmlCode').value=s.html;$('htmlSetup').value=s.html;
   counts();meta();backupInfo();
   if(standalone){
@@ -399,7 +538,7 @@ function render(){
   }
   document.body.classList.remove('booting');
 }
-function counts(){$('setupCount').textContent=[...$('htmlSetup').value].length.toLocaleString()+'文字';$('htmlCount').textContent=[...$('htmlCode').value].length.toLocaleString()+'文字';$('memoCount').textContent=[...$('memo').value].length.toLocaleString()+' / 10,000文字'}
+function counts(){$('setupCount').textContent=[...$('htmlSetup').value].length.toLocaleString()+'文字';$('htmlCount').textContent=[...$('htmlCode').value].length.toLocaleString()+'文字';updateMemoCount()}
 function drawerOpen(){if(!s.html)return;$('drawer').classList.add('open');$('shade').classList.add('show');$('edge').style.display='none'}
 function drawerClose(){$('drawer').classList.remove('open');$('shade').classList.remove('show');$('edge').style.display=s.html?'block':'none'}
 function tab(id){document.querySelectorAll('.tab').forEach(b=>b.classList.toggle('active',b.dataset.panel===id));document.querySelectorAll('.panel').forEach(p=>p.classList.toggle('active',p.id===id));$('panels').scrollTop=0;if(id==='backupPanel'){storage();backupInfo()}}
@@ -420,7 +559,7 @@ async function storage(){
 
 /* バックアップ目安表示用: 現在のアプリデータサイズ（バイト） */
 function appBytes(){
-  try{return new Blob([JSON.stringify({html:s.html,previousHtml:s.previousHtml,memo:s.memo})]).size}catch(e){return 0}
+  try{return new Blob([JSON.stringify({html:s.html,previousHtml:s.previousHtml,memo:s.memo,memoChecked:s.memoChecked})]).size}catch(e){return 0}
 }
 function fmtDate(iso){
   const d=new Date(iso);
@@ -451,7 +590,17 @@ function backupInfo(){
 function download(blob,name){let u=URL.createObjectURL(blob),a=document.createElement('a');a.href=u;a.download=name;document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(u),1500)}
 function localData(){try{return Object.fromEntries(Object.keys(localStorage).map(k=>[k,localStorage.getItem(k)]).filter(([k])=>!k.startsWith('__manager_')))}catch{return null}}
 async function saveHtml(){let v=$('htmlCode').value;if(!v.trim()){toast('HTMLを入力してください');return}if(v!==s.html){s.previousHtml=s.html;s.html=v}await put();setRunner(s.html);drawerClose();stage('run');toast('HTMLを保存しました')}
-async function share(){let text='次の修正を実施して全コードを提供してください。\n\n'+memoBullet(s.memo);try{await navigator.clipboard.writeText(text)}catch{toast('コピーできませんでした');return}let f=new File([s.html],(s.name||'アプリ＋')+'.html',{type:'text/html'});try{if(navigator.share&&navigator.canShare?.({files:[f]})){await navigator.share({title:'HTML改善依頼',text,files:[f]});toast('共有画面を開きました')}else{download(f,f.name);toast('依頼文をコピーしHTMLを保存しました')}}catch(e){if(e.name!=='AbortError')toast('共有に失敗しました。依頼文はコピー済みです')}}
+
+function memoTextForAI(){
+  return memoItems.map(function(it){ return '・' + it.text; }).join('\n');
+}
+
+async function share(){
+  let text='次の修正を実施して全コードを提供してください。\n\n'+memoTextForAI();
+  try{await navigator.clipboard.writeText(text)}catch{toast('コピーできませんでした');return}
+  let f=new File([s.html],(s.name||'アプリ＋')+'.html',{type:'text/html'});
+  try{if(navigator.share&&navigator.canShare?.({files:[f]})){await navigator.share({title:'HTML改善依頼',text,files:[f]});toast('共有画面を開きました')}else{download(f,f.name);toast('依頼文をコピーしHTMLを保存しました')}}catch(e){if(e.name!=='AbortError')toast('共有に失敗しました。依頼文はコピー済みです')}
+}
 
 function extractTitle(html){
   const m=String(html||'').match(/<title[^>]*>([\s\S]*?)<\/title>/i);
@@ -463,7 +612,7 @@ function sanitizeName(n){const c=String(n||'').replace(/[\\/:*?"<>|\r\n\t]/g,'_'
 async function exportBackup(){
   const title=extractTitle(s.html)||(s.name||'アプリ＋');
   const filename=`${sanitizeName(title)}（アプリ＋バックアップ）.json`;
-  const app={html:s.html,previousHtml:s.previousHtml,memo:s.memo};
+  const app={html:s.html,previousHtml:s.previousHtml,memo:s.memo,memoChecked:s.memoChecked};
   const o={format:'html-app-manager-backup',version:2,exportedAt:new Date().toISOString(),app,localStorage:localData(),limitations:['HTML側IndexedDBは汎用バックアップ対象外','localStorageは同一オリジンで参照できる範囲','アプリ名・アイコンは保存対象外']};
   download(new Blob([JSON.stringify(o,null,2)],{type:'application/json'}),filename);
   s.lastBackupAt=new Date().toISOString();
@@ -473,7 +622,7 @@ async function exportBackup(){
   toast('バックアップを書き出しました');
 }
 async function importBackup(f){try{let o=JSON.parse(await f.text());if(o.format!=='html-app-manager-backup'||!o.app||typeof o.app.html!=='string')throw Error('対応していないファイルです');if(!confirm('現在の内容を上書きして復元しますか？'))return;
-  s.html=o.app.html||'';s.previousHtml=o.app.previousHtml||'';s.memo=o.app.memo||'';
+  s.html=o.app.html||'';s.previousHtml=o.app.previousHtml||'';s.memo=o.app.memo||'';s.memoChecked=Array.isArray(o.app.memoChecked)?o.app.memoChecked:[];
   await put();
   if(o.localStorage&&confirm('バックアップ内のlocalStorageも復元しますか？'))for(let[k,v]of Object.entries(o.localStorage))if(typeof v==='string')localStorage.setItem(k,v);
   render();toast('復元しました。IndexedDBの実行データは対象外です')}catch(e){alert('復元できませんでした：'+e.message)}}
@@ -500,7 +649,7 @@ $('iconFile').onchange=e=>chooseIcon(e.target.files?.[0]);
 $('iconPreview').addEventListener('click',()=>$('iconFile').click());
 $('iconPreview').addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();$('iconFile').click()}});
 
-$('firstSave').onclick=async()=>{let v=$('htmlSetup').value;if(!v.trim()){toast('HTMLを入力してください');return}s.html=v;s.previousHtml='';s.memo='';await put();render();toast('HTMLを登録しました')};
+$('firstSave').onclick=async()=>{let v=$('htmlSetup').value;if(!v.trim()){toast('HTMLを入力してください');return}s.html=v;s.previousHtml='';s.memo='';s.memoChecked=[];await put();render();toast('HTMLを登録しました')};
 
 /* 未登録画面の復元ボタン: ドロワー内のバックアップファイル選択を共有 */
 $('setupRestore').onclick=()=>$('backupFile').click();
@@ -512,29 +661,36 @@ $('copyHtml').onclick=async()=>{try{await navigator.clipboard.writeText($('htmlC
 $('clearHtml').onclick=()=>{$('htmlCode').value='';counts();$('htmlCode').focus();toast('編集欄をクリアしました')};
 $('restoreHtml').onclick=()=>{if(!s.previousHtml){toast('戻せる履歴がありません');return}if(confirm('直前のHTMLを編集欄に戻しますか？')){$('htmlCode').value=s.previousHtml;counts();$('htmlCode').scrollTop=0}};
 
-const memoTa=$('memo');
-function saveMemoSoon(){clearTimeout(memoTimer);memoTimer=setTimeout(()=>{s.memo=$('memo').value;put().catch(()=>toast('メモを保存できませんでした'))},500)}
-memoTa.addEventListener('input',()=>{counts()});
-memoTa.addEventListener('focus',()=>{if(!memoTa.value.trim()){memoTa.value='・';counts();saveMemoSoon();try{memoTa.setSelectionRange(1,1)}catch(e){}}});
-memoTa.addEventListener('keydown',e=>{
-  if(e.isComposing||e.keyCode===229)return;
-  if(e.key==='Enter'){
-    e.preventDefault();
-    const pos=memoTa.selectionStart,end=memoTa.selectionEnd,ins='\n・';
-    memoTa.value=memoTa.value.slice(0,pos)+ins+memoTa.value.slice(end);
-    const np=pos+ins.length;try{memoTa.setSelectionRange(np,np)}catch(err){}
-    counts();saveMemoSoon();
+/* 改善メモ操作 */
+$('addMemo').onclick=function(){
+  memoItems.push({ text: '', checked: false });
+  saveMemoItemsSoon();
+  renderMemoList(memoItems.length - 1);
+};
+$('clearMemo').onclick=async function(){
+  if (!memoItems.some(function(it){ return it.checked; })) {
+    toast('チェックされた項目がありません');
+    return;
   }
-});
-memoTa.addEventListener('paste',e=>{
-  const t=(e.clipboardData||window.clipboardData).getData('text')||'';
-  const remain=10000-memoTa.value.length;
-  if(t.length>remain){e.preventDefault();toast('最大10,000文字です。超過分は貼り付けませんでした')}
-  setTimeout(()=>{const v=memoBullet(memoTa.value);if(v!==memoTa.value){memoTa.value=v;counts();saveMemoSoon()}},0);
-});
-memoTa.addEventListener('blur',()=>{const v=memoBullet(memoTa.value);if(v!==memoTa.value){memoTa.value=v;counts()}s.memo=memoTa.value;put().catch(()=>toast('メモを保存できませんでした'))});
-
-$('clearMemo').onclick=async()=>{if(confirm('改善メモをすべて削除しますか？')){memoTa.value='・';s.memo='・';counts();await put();memoTa.focus();try{memoTa.setSelectionRange(1,1)}catch(e){}toast('メモをクリアしました')}};
+  if (!confirm('チェックした項目を削除しますか？')) return;
+  memoItems = memoItems.filter(function(it){ return !it.checked; });
+  renderMemoList();
+  await saveMemoItemsNow();
+  toast('チェックした項目を削除しました');
+};
+$('copyMemo').onclick=async function(){
+  const text = memoTextForAI();
+  if (!text.replace(/・/g, '').trim()) {
+    toast('メモが空です');
+    return;
+  }
+  try{
+    await navigator.clipboard.writeText(text);
+    toast('メモをコピーしました');
+  }catch{
+    toast('コピーできませんでした');
+  }
+};
 
 $('improve').onclick=share;
 $('export').onclick=exportBackup;
@@ -543,14 +699,34 @@ $('backupFile').onchange=e=>{if(e.target.files[0])importBackup(e.target.files[0]
 document.querySelectorAll('.tab').forEach(b=>b.onclick=()=>tab(b.dataset.panel));
 $('close').onclick=drawerClose;$('shade').onclick=drawerClose;
 
-$('edge').addEventListener('pointerdown',e=>{ex=e.clientX;ey=e.clientY;$('edge').classList.add('pull')});
-$('edge').addEventListener('pointerup',e=>{if(ex!==null){const dx=ex-e.clientX,dy=ey-e.clientY;if(dx>10||(Math.abs(dx)<10&&Math.abs(dy)<10))drawerOpen()}ex=null;ey=null;$('edge').classList.remove('pull')});
-$('edge').addEventListener('pointercancel',()=>{ex=null;ey=null;$('edge').classList.remove('pull')});
+/* 右端エッジ操作（iframe内D&Dへの干渉を最小限にする） */
+$('edge').addEventListener('pointerdown',function(e){
+  edgeState={x:e.clientX,y:e.clientY,t:Date.now(),moved:false};
+  ex=edgeState.x;ey=edgeState.y;
+  $('edge').classList.add('pull');
+});
+$('edge').addEventListener('pointermove',function(e){
+  if(!edgeState)return;
+  if(Math.abs(e.clientX-edgeState.x)>6||Math.abs(e.clientY-edgeState.y)>6)edgeState.moved=true;
+});
+$('edge').addEventListener('pointerup',function(e){
+  if(!edgeState)return;
+  const st=edgeState;edgeState=null;ex=null;ey=null;
+  $('edge').classList.remove('pull');
+  const dx=st.x-e.clientX,dy=st.y-e.clientY;
+  const dt=Date.now()-st.t;
+  const isTap=!st.moved&&dt<400;
+  const isSwipe=dx>20&&Math.abs(dx)>Math.abs(dy)*1.5;
+  if(isTap||isSwipe)drawerOpen();
+});
+$('edge').addEventListener('pointercancel',function(){
+  edgeState=null;ex=null;ey=null;$('edge').classList.remove('pull');
+});
 
 let swipe=null;
 $('drawer').addEventListener('touchstart',e=>{if(e.touches.length===1)swipe={x:e.touches[0].clientX,y:e.touches[0].clientY}},{passive:true});
 $('drawer').addEventListener('touchend',e=>{if(!swipe)return;let dx=e.changedTouches[0].clientX-swipe.x,dy=e.changedTouches[0].clientY-swipe.y;if(dx>75&&Math.abs(dx)>Math.abs(dy))drawerClose();swipe=null},{passive:true});
 
-(async()=>{try{db=await openDB();let old=await get();if(old){s.html=old.html||'';s.previousHtml=old.previousHtml||'';s.memo=old.memo||'';s.lastBackupAt=old.lastBackupAt||null;s.lastBackupSize=typeof old.lastBackupSize==='number'?old.lastBackupSize:0}render()}catch(e){document.body.classList.remove('booting');toast('初期化に失敗しました：'+e.message)}})();
+(async()=>{try{db=await openDB();let old=await get();if(old){s.html=old.html||'';s.previousHtml=old.previousHtml||'';s.memo=old.memo||'';s.memoChecked=Array.isArray(old.memoChecked)?old.memoChecked:[];s.lastBackupAt=old.lastBackupAt||null;s.lastBackupSize=typeof old.lastBackupSize==='number'?old.lastBackupSize:0}render()}catch(e){document.body.classList.remove('booting');toast('初期化に失敗しました：'+e.message)}})();
 })();
 </script></body></html>
