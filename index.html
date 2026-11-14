@@ -95,11 +95,6 @@ h1{font-size:21px;margin:0}h2{font-size:15px;margin:0}p,.hint{font-size:13px;lin
 #shade.show{display:block}
 #toast{position:absolute;z-index:60;bottom:calc(16px + env(safe-area-inset-bottom,0px));left:50%;transform:translateX(-50%);background:#e6ebf3;color:#10141a;padding:10px 15px;border-radius:30px;font-size:13px;opacity:0;pointer-events:none;transition:opacity .2s;max-width:90%;text-align:center}
 #toast.show{opacity:1}
-
-/* 画面回転直後の1フレームの下ズレを隠す全面マスク（背景色はiframeに追従） */
-#rotMask{position:absolute;inset:0;z-index:100;background:var(--bg);opacity:0;visibility:hidden;pointer-events:none}
-#rotMask.show{opacity:1;visibility:visible}
-
 [hidden]{display:none!important}</style></head><body class="booting">
 <div id="app">
 <div id="stage">
@@ -178,7 +173,6 @@ h1{font-size:21px;margin:0}h2{font-size:15px;margin:0}p,.hint{font-size:13px;lin
 </div></aside>
 <button id="edge" aria-label="管理画面を開く"></button>
 <div id="toast"></div>
-<div id="rotMask"></div>
 </div>
 <script>
 (()=>{'use strict';
@@ -223,20 +217,19 @@ document.addEventListener('touchend',function(e){
    画面回転（横→縦）後に「縦画面が少し下にズレた状態」が
    1フレーム表示される不具合の対策
    ------------------------------------------------------------
-   原因: iframe(#runner)内部のスクロール位置が横向き時のまま残り、
-        新しい縦レイアウトでその scrollTop が 1 フレーム適用される。
+   原因: 親ページのリセットだけでは足りず、#stage や
+        iframe(#runner) 内部のスクロール位置が横向き時のまま
+        残り、新しい縦レイアウトでその scrollTop が 1 フレーム
+        適用されることで「下にズレた縦画面」が出る。
    対策:
-     1) 回転イベントで同期的に親ページ＋iframe内部＋#stage の
-        スクロールをリセット
-     2) 背景色一致の全面マスク #rotMask を回転直後だけ表示し、
-        レイアウト確定後に隠す
-     3) iframe 注入CSSに overflow-anchor:none を追加し
+     1) orientationchange/resize の先頭で同期的に
+        親＋#stage＋iframe内部 のスクロールを 0 に戻す
+     2) 注入CSSに overflow-anchor:none を追加し
         スクロールアンカリングによる自動ズレを抑止
+     3) 念のため時間をずらして複数回リセット
    ============================================================ */
 let vpFixTimers=[];
-let rotMaskTimer=null;
 let lastOrientation=(window.innerWidth>window.innerHeight)?'landscape':'portrait';
-const rotMask=$('rotMask');
 
 function clearVpFixTimers(){
   for(let i=0;i<vpFixTimers.length;i++)clearTimeout(vpFixTimers[i]);
@@ -252,8 +245,8 @@ function resetScrollPositions(){
   if(b.scrollLeft)b.scrollLeft=0;
   const stage=$('stage');
   if(stage&&stage.scrollTop)stage.scrollTop=0;
-  /* iframe 内部のスクロール位置が横向き時のまま残ると
-     縦に切り替わった瞬間、内容が下へズレて見える */
+  /* iframe内部のスクロール位置が残ると縦切り替え直後に
+     内容が下ズレして見えるため、内部も同期的にリセット */
   try{
     const runner=$('runner');
     if(runner&&runner.contentWindow){
@@ -274,39 +267,40 @@ function resetScrollPositions(){
   }catch(e){}
 }
 
-function showRotMask(){
-  if(!rotMask)return;
-  clearTimeout(rotMaskTimer);
-  rotMask.classList.add('show');
-}
-
-function hideRotMaskSoon(){
-  if(!rotMask)return;
-  clearTimeout(rotMaskTimer);
-  rotMaskTimer=setTimeout(function(){
-    requestAnimationFrame(function(){
-      requestAnimationFrame(function(){
-        resetScrollPositions();
-        rotMask.classList.remove('show');
-      });
-    });
-  },120);
+/* 合成レイヤーを作り直して描画位置とヒットテスト位置を一致させる
+   （タッチズレ対策として既存挙動を維持） */
+function forceRepaint(el){
+  if(!el)return;
+  el.style.transform='translate3d(0,0,0)';
+  void el.offsetHeight;
+  requestAnimationFrame(function(){
+    el.style.transform='';
+    void el.offsetHeight;
+  });
 }
 
 function relayoutAfterRotation(){
   resetScrollPositions();
-  const app=$('app'),runtime=$('runtime');
-  if(app)void app.offsetHeight;
-  if(runtime)void runtime.offsetHeight;
+  forceRepaint($('app'));
+
+  const runner=$('runner');
+  if(runner){
+    /* iframe を一度レイアウトツリーから外して内部レイアウトを
+       再構築させる（同一タスク内で戻すので画面のチラつきなし） */
+    const prev=runner.style.display;
+    runner.style.display='none';
+    void runner.offsetHeight;
+    runner.style.display=prev||'block';
+  }
+  forceRepaint($('runtime'));
 }
 
 function scheduleViewportFix(){
   clearVpFixTimers();
-  /* 描画前に反映させるため同期的にリセット＋マスク表示 */
+  /* 重要: setTimeout(0) より先に同期的に 0 へ戻す。
+     これをしないと新レイアウトの初回描画に旧スクロール位置が
+     乗って「下ズレした縦画面」が 1 フレーム出る。 */
   resetScrollPositions();
-  showRotMask();
-  hideRotMaskSoon();
-  /* iOS は回転直後にレイアウトが確定しないため時間をずらして複数回補正 */
   const delays=[0,50,120,250,400,700,1000];
   for(let i=0;i<delays.length;i++){
     vpFixTimers.push(setTimeout(relayoutAfterRotation,delays[i]));
@@ -445,7 +439,8 @@ function injectIframeCSS() {
       if (old) old.remove();
       var style = doc.createElement('style');
       style.id = '__app_plus_injected';
-      /* overflow-anchor:none で回転時のスクロールアンカリングによる自動ズレを抑止 */
+      /* overflow-anchor:none で回転時のスクロールアンカリングによる
+         自動ズレ（下ズレの一因）を抑止 */
       style.textContent = '*, *::before, *::after { -webkit-backdrop-filter: none !important; backdrop-filter: none !important; } html, body { overflow-anchor: none !important; }';
       doc.head.appendChild(style);
 
@@ -456,7 +451,6 @@ function injectIframeCSS() {
       if (bg && bg !== 'rgba(0, 0, 0, 0)' && bg !== 'transparent') {
         $('runtime').style.backgroundColor = bg;
         $('app').style.backgroundColor = bg;
-        if (rotMask) rotMask.style.backgroundColor = bg;
         var metaTheme = document.querySelector('meta[name="theme-color"]');
         if (metaTheme) metaTheme.content = bg;
       }
