@@ -35,8 +35,9 @@ input[type=text],textarea{width:100%;max-width:100%;min-width:0;border:1px solid
 input::placeholder,textarea::placeholder{color:#5a6478}
 textarea{resize:vertical}
 
-/* 合成レイヤーを安定させ、回転時の位置ズレを防ぐ */
-#app{position:fixed;inset:0;width:100%;height:100%;overflow:hidden;background:var(--bg);z-index:1;transition:background-color .2s;will-change:transform;backface-visibility:hidden}
+/* will-change/backface-visibilityは横画面回転でセーフエリアの
+   1フレーム遅延を招くため削除 */
+#app{position:fixed;inset:0;width:100%;height:100%;overflow:hidden;background:var(--bg);z-index:1;transition:background-color .2s}
 
 #stage{position:absolute;inset:0;overflow-y:auto;overflow-x:hidden;background:var(--bg);padding:calc(20px + env(safe-area-inset-top,0px)) 16px calc(24px + env(safe-area-inset-bottom,0px));z-index:10;touch-action:pan-y}
 .card{max-width:560px;width:100%;margin:0 auto 14px;background:var(--panel);border:1px solid var(--line);border-radius:18px;padding:20px;display:flex;flex-direction:column;gap:14px;box-shadow:0 8px 28px #00000055}
@@ -62,8 +63,8 @@ h1{font-size:21px;margin:0}h2{font-size:15px;margin:0}p,.hint{font-size:13px;lin
 #setupName{max-width:280px;text-align:center;padding:10px 14px;border-radius:12px}
 #htmlSetup{height:40vh;min-height:220px;font-family:ui-monospace,monospace;font-size:16px;line-height:1.45}
 
-#runtime{position:absolute;inset:0;display:none;background:var(--bg);z-index:5;transition:background-color .2s;touch-action:auto;will-change:transform;backface-visibility:hidden}
-#runner{position:absolute;inset:0;width:100%;height:100%;border:0;display:block;background:transparent;touch-action:auto;will-change:transform;backface-visibility:hidden}
+#runtime{position:absolute;inset:0;display:none;background:var(--bg);z-index:5;transition:background-color .2s;touch-action:auto}
+#runner{position:absolute;inset:0;width:100%;height:100%;border:0;display:block;background:transparent;touch-action:auto}
 
 #edge{position:absolute;z-index:20;right:0;top:calc(50% - 60px);width:16px;height:120px;min-height:0;padding:0;border:0;border-radius:0;background:transparent;touch-action:pan-y;-webkit-tap-highlight-color:transparent}
 #edge::before{content:"";position:absolute;right:0;top:12px;bottom:12px;width:3px;border-radius:3px 0 0 3px;background:#ffffff1f;transition:width .18s,background .18s}
@@ -222,22 +223,11 @@ document.addEventListener('touchend',function(e){
 },{passive:false});
 
 /* ============================================================
-   画面回転（横→縦）後に「縦画面が少し下にズレた1フレーム」が
-   出る不具合の対策
+   画面回転対策（縦横共通）
    ------------------------------------------------------------
-   原因:
-   ・iOSの回転アニメーション用スナップショットが取られる瞬間に
-     iframe内部の 100vh / overflow-anchor / overscroll が
-     横向き時の値のまま残り、コンテンツが下方向にオフセット
-   ・#app の forceRepaint (transform 付与) が回転アニメ中に
-     コンポジットレイヤーを作り直して位置が1Fズレる
-   対策:
-   1) 回転中は全 transition/animation を停止 (html.rotating)
-   2) 最初の350msは rAF で毎フレーム scroll=0 を強制
-   3) forceRepaint を 100ms 以降にずらし、アニメ中のスナップ
-      ショットに干渉しない
-   4) iframe に overscroll-behavior / overflow-anchor / dvh を注入
-   5) ResizeObserver で iframe リサイズ時にも即スクロールリセット
+   縦: スクロール位置残りによる下ズレ → 同期リセット＋rAFループで解決
+   横: will-change/backface-visibility による iframe 合成
+       レイヤーのセーフエリア1フレーム遅延 → 該当プロパティを削除
    ============================================================ */
 let vpFixTimers=[];
 let rotEndTimer=null;
@@ -280,8 +270,6 @@ function resetScrollPositions(){
   }catch(e){}
 }
 
-/* 合成レイヤーを作り直して描画位置とヒットテスト位置を一致させる
-   (タッチズレ対策として既存挙動を維持) */
 function forceRepaint(el){
   if(!el)return;
   el.style.transform='translate3d(0,0,0)';
@@ -309,7 +297,6 @@ function scheduleViewportFix(){
   clearVpFixTimers();
   const html=document.documentElement;
 
-  /* 回転中だけ transition/animation を止める */
   html.classList.add('rotating');
   if(rotEndTimer)clearTimeout(rotEndTimer);
   rotEndTimer=setTimeout(function(){
@@ -317,11 +304,8 @@ function scheduleViewportFix(){
     resetScrollPositions();
   },600);
 
-  /* 同期的にスクロールリセット */
   resetScrollPositions();
 
-  /* 最初の350msは毎フレーム scroll=0 を強制
-     (iOSが後追いでリストアしてくるスクロール位置を潰す) */
   const start=performance.now();
   function rafReset(){
     resetScrollPositions();
@@ -333,8 +317,6 @@ function scheduleViewportFix(){
   }
   rotatingRafId=requestAnimationFrame(rafReset);
 
-  /* forceRepaint は100ms以降に。回転アニメ中のスナップショットに
-     コンポジットレイヤー操作が干渉しないようにする */
   const delays=[100,250,500,800];
   for(let i=0;i<delays.length;i++){
     vpFixTimers.push(setTimeout(relayoutAfterRotation,delays[i]));
@@ -359,8 +341,6 @@ if(window.visualViewport){
   },{passive:true});
 }
 
-/* iframeのリサイズにも即反応してスクロールをリセット
-   (回転スナップショットの直前に取りこぼしを拾う保険) */
 if(window.ResizeObserver){
   try{
     const ro=new ResizeObserver(function(){resetScrollPositions()});
@@ -472,7 +452,8 @@ function stage(which){
   $('edge').style.display=which==='run'?'block':'none';
 }
 
-/* iframe内のCSS注入＆背景色抽出 */
+/* iframe内のCSS注入＆背景色抽出
+   横画面でのセーフエリア1フレーム遅延を招く min-height:100dvh は削除 */
 function injectIframeCSS() {
   try {
     var runner = $('runner');
@@ -482,17 +463,9 @@ function injectIframeCSS() {
       if (old) old.remove();
       var style = doc.createElement('style');
       style.id = '__app_plus_injected';
-      /* 回転スナップショット対策:
-         ・overflow-anchor:none で自動スクロール補正を無効化
-         ・overscroll-behavior:none でゴムバウンドを無効化
-         ・height を 100dvh フォールバックにして 100vh の遅延更新を回避 */
       style.textContent = [
         '*, *::before, *::after { -webkit-backdrop-filter: none !important; backdrop-filter: none !important; }',
-        'html, body { overflow-anchor: none !important; overscroll-behavior: none !important; }',
-        '@supports (height: 100dvh) {',
-        '  html { min-height: 100dvh; }',
-        '  body { min-height: 100dvh; }',
-        '}'
+        'html, body { overflow-anchor: none !important; overscroll-behavior: none !important; }'
       ].join('\n');
       doc.head.appendChild(style);
 
