@@ -4,12 +4,10 @@
 <meta name="theme-color" content="#000000">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<!-- ブラーを確実に防ぐため black (不透明) に固定 -->
 <meta name="apple-mobile-web-app-status-bar-style" content="black">
 <meta name="apple-mobile-web-app-title" content="アプリ＋">
 <title>アプリ＋</title>
 <style>
-/* ブラーを完全に無効化 */
 *, *::before, *::after {
   -webkit-backdrop-filter: none !important;
   backdrop-filter: none !important;
@@ -30,23 +28,19 @@ input[type=text],textarea{width:100%;max-width:100%;min-width:0;border:1px solid
 input::placeholder,textarea::placeholder{color:#5a6478}
 textarea{resize:vertical}
 
-/* アプリ全体 */
 #app{position:fixed;inset:0;width:100%;height:100%;overflow:hidden;background:var(--bg);z-index:1;transition:background-color .2s}
 
-/* セットアップ・管理画面 */
 #stage{position:absolute;inset:0;overflow-y:auto;overflow-x:hidden;background:var(--bg);padding:calc(20px + env(safe-area-inset-top,0px)) 16px calc(24px + env(safe-area-inset-bottom,0px));z-index:10;touch-action:pan-y}
 .card{max-width:560px;width:100%;margin:0 auto 14px;background:var(--panel);border:1px solid var(--line);border-radius:18px;padding:20px;display:flex;flex-direction:column;gap:14px;box-shadow:0 8px 28px #00000055}
 h1{font-size:21px;margin:0}h2{font-size:15px;margin:0}p,.hint{font-size:13px;line-height:1.6;color:var(--muted);margin:0}
 .setup-head{max-width:560px;width:100%;margin:0 auto 14px;padding:0 4px}
 .setup-head .subtitle{margin:6px 0 0;font-size:14px;color:var(--muted);line-height:1.5;font-weight:400}
 
-/* ①〜② 統一ステップラベル */
 .step-label{font-size:16px;font-weight:650;color:var(--text);line-height:1.6}
 .step{margin:0;font-size:16px;font-weight:650;color:var(--text);line-height:1.6}
 .share-step{display:flex;align-items:center;gap:.4em}
 .share-icon{width:1.5em;height:1.5em;flex:none;color:var(--text);display:block}
 
-/* 共有マーク付きボタン */
 .btn-share{display:inline-flex;align-items:center;justify-content:center;gap:.4em}
 .btn-share svg{width:1.25em;height:1.25em;flex:none;display:block}
 
@@ -54,23 +48,19 @@ h1{font-size:21px;margin:0}h2{font-size:15px;margin:0}p,.hint{font-size:13px;lin
 .title-row h1,.title-row h2{flex:1;min-width:0}
 .title-row .count{flex:none;text-align:right}
 
-/* アプリ設定（アイコン＋アプリ名・中央寄せ・ホーム画面風） */
 .app-setting{display:flex;flex-direction:column;align-items:center;gap:14px;padding:8px 0 4px}
 #iconPreview{width:104px;height:104px;aspect-ratio:1/1;object-fit:cover;border-radius:24px;border:1px solid var(--line);background:#0d1015;cursor:pointer;-webkit-tap-highlight-color:transparent;transition:border-color .15s,opacity .15s;box-shadow:0 6px 20px #00000066}
 #iconPreview:active{border-color:var(--accent);opacity:.85}
 #setupName{max-width:280px;text-align:center;padding:10px 14px;border-radius:12px}
 #htmlSetup{height:40vh;min-height:220px;font-family:ui-monospace,monospace;font-size:16px;line-height:1.45}
 
-/* iframe（実行画面）を全画面に配置 */
 #runtime{position:absolute;inset:0;display:none;background:var(--bg);z-index:5;transition:background-color .2s;touch-action:auto}
 #runner{position:absolute;inset:0;width:100%;height:100%;border:0;display:block;background:transparent;touch-action:auto}
 
-/* 右端のスワイプ用エッジ */
 #edge{position:absolute;z-index:20;right:0;top:calc(50% - 60px);width:16px;height:120px;min-height:0;padding:0;border:0;border-radius:0;background:transparent;touch-action:pan-y;-webkit-tap-highlight-color:transparent}
 #edge::before{content:"";position:absolute;right:0;top:12px;bottom:12px;width:3px;border-radius:3px 0 0 3px;background:#ffffff1f;transition:width .18s,background .18s}
 #edge.pull::before,#edge:active::before{width:5px;background:#4d8df7b3}
 
-/* ドロワー（管理画面） */
 #drawer{position:absolute;inset:0;z-index:40;background:var(--bg);display:flex;flex-direction:column;overflow:hidden;transform:translateX(102%);transition:transform .23s}
 #drawer.open{transform:translateX(0)}
 #head{flex:none;display:flex;justify-content:space-between;align-items:center;padding:calc(9px + env(safe-area-inset-top,0px)) 14px 9px;background:#11151b;border-bottom:1px solid var(--line)}
@@ -86,7 +76,6 @@ h1{font-size:21px;margin:0}h2{font-size:15px;margin:0}p,.hint{font-size:13px;lin
 .row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
 .row>*{flex:1;min-width:0}
 
-/* 改善メモ（チェックボックス式） */
 .memo-list{display:flex;flex-direction:column;gap:6px}
 .memo-item{display:flex;align-items:flex-start;gap:8px;background:#0d1015;border:1px solid var(--line);border-radius:10px;padding:8px 10px;min-width:0}
 .memo-check{flex:none;width:22px;height:22px;margin:3px 0 0;accent-color:var(--accent);cursor:pointer;touch-action:manipulation}
@@ -96,10 +85,8 @@ h1{font-size:21px;margin:0}h2{font-size:15px;margin:0}p,.hint{font-size:13px;lin
 .memo-del:active{background:#2a161c;color:#ff9aa8}
 .memo-empty{color:var(--muted);font-size:13px;padding:12px;text-align:center;background:#0d1015;border:1px dashed var(--line);border-radius:10px}
 
-/* HTML編集の4ボタンを横一列に */
 .btns4 button{padding-left:4px;padding-right:4px;font-size:15px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 
-/* HTML編集の入力欄は改善メモと同じ高さに統一 */
 #htmlCode{height:36vh;min-height:230px;max-height:58vh;font-family:ui-monospace,monospace;font-size:16px;line-height:1.45}
 .count{text-align:right;font-size:12px;color:var(--muted);white-space:nowrap}
 #storageBar{height:9px;border-radius:9px;background:#212a38;overflow:hidden}
@@ -108,6 +95,11 @@ h1{font-size:21px;margin:0}h2{font-size:15px;margin:0}p,.hint{font-size:13px;lin
 #shade.show{display:block}
 #toast{position:absolute;z-index:60;bottom:calc(16px + env(safe-area-inset-bottom,0px));left:50%;transform:translateX(-50%);background:#e6ebf3;color:#10141a;padding:10px 15px;border-radius:30px;font-size:13px;opacity:0;pointer-events:none;transition:opacity .2s;max-width:90%;text-align:center}
 #toast.show{opacity:1}
+
+/* 画面回転直後の1フレームの下ズレを隠す全面マスク（背景色はiframeに追従） */
+#rotMask{position:absolute;inset:0;z-index:100;background:var(--bg);opacity:0;visibility:hidden;pointer-events:none}
+#rotMask.show{opacity:1;visibility:visible}
+
 [hidden]{display:none!important}</style></head><body class="booting">
 <div id="app">
 <div id="stage">
@@ -186,6 +178,7 @@ h1{font-size:21px;margin:0}h2{font-size:15px;margin:0}p,.hint{font-size:13px;lin
 </div></aside>
 <button id="edge" aria-label="管理画面を開く"></button>
 <div id="toast"></div>
+<div id="rotMask"></div>
 </div>
 <script>
 (()=>{'use strict';
@@ -195,37 +188,29 @@ const mq=window.matchMedia;
 const standalone=(mq&&(mq('(display-mode: standalone)').matches||mq('(display-mode: fullscreen)').matches||mq('(display-mode: minimal-ui)').matches||mq('(display-mode: window-controls-overlay)').matches))||navigator.standalone===true;
 const isIOS=/iPad|iPhone|iPod/.test(navigator.userAgent)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);
 
-/* ピンチズーム防止（iOS Safari） */
 ['gesturestart','gesturechange','gestureend'].forEach(function(t){document.addEventListener(t,function(e){if(e.cancelable)e.preventDefault()},{passive:false})});
 
-/* ドラッグ&ドロップを親ページで許可（iframe内アプリのD&D干渉対策） */
 document.addEventListener('dragover',function(e){if(e.cancelable)e.preventDefault()},false);
 document.addEventListener('drop',function(e){if(e.cancelable)e.preventDefault()},false);
 
-/* エッジスワイプ（Safariの戻る/進む）防止用にタッチ開始位置を記録 */
 let edgeStartX=null,edgeStartY=null;
 document.addEventListener('touchstart',function(e){
   if(e.touches.length===1){edgeStartX=e.touches[0].clientX;edgeStartY=e.touches[0].clientY}
   else{edgeStartX=null;edgeStartY=null}
 },{passive:true});
 
-/* ピンチズーム防止（マルチタッチ）＋エッジスワイプ防止 */
 document.addEventListener('touchmove',function(e){
   if(e.touches.length>1){if(e.cancelable)e.preventDefault();return}
   if(edgeStartX===null)return;
   const dx=e.touches[0].clientX-edgeStartX;
   const dy=e.touches[0].clientY-edgeStartY;
-  /* 横方向の移動が縦より大きい場合のみ判定（縦スクロールは許可） */
   if(Math.abs(dx)<=Math.abs(dy))return;
   const EDGE=30;
   const w=window.innerWidth||document.documentElement.clientWidth;
-  /* 左端から右スワイプ（戻る） */
   if(edgeStartX<EDGE&&dx>0){if(e.cancelable)e.preventDefault();return}
-  /* 右端から左スワイプ（進む） */
   if(edgeStartX>w-EDGE&&dx<0){if(e.cancelable)e.preventDefault();return}
 },{passive:false});
 
-/* ダブルタップズーム防止 */
 let lastTapEnd=0;
 document.addEventListener('touchend',function(e){
   const now=Date.now();const editing=e.target&&e.target.closest&&e.target.closest('input,textarea');
@@ -235,24 +220,29 @@ document.addEventListener('touchend',function(e){
 },{passive:false});
 
 /* ============================================================
-   iOS: 画面回転（横→縦）後にタッチ座標が下へズレる不具合の対策
+   画面回転（横→縦）後に「縦画面が少し下にズレた状態」が
+   1フレーム表示される不具合の対策
    ------------------------------------------------------------
-   iOS Safari は回転直後に
-   ・ページが数px〜数十pxスクロールした状態になる
-   ・position:fixed 要素の「描画位置」と「ヒットテスト位置」がズレる
-   ・iframe 内部のレイアウトが古いまま残る
-   という挙動をするため、回転イベント後に
-   スクロール位置リセット＋強制再レイアウトを複数回行う。
+   原因: iframe(#runner)内部のスクロール位置が横向き時のまま残り、
+        新しい縦レイアウトでその scrollTop が 1 フレーム適用される。
+   対策:
+     1) 回転イベントで同期的に親ページ＋iframe内部＋#stage の
+        スクロールをリセット
+     2) 背景色一致の全面マスク #rotMask を回転直後だけ表示し、
+        レイアウト確定後に隠す
+     3) iframe 注入CSSに overflow-anchor:none を追加し
+        スクロールアンカリングによる自動ズレを抑止
    ============================================================ */
 let vpFixTimers=[];
+let rotMaskTimer=null;
 let lastOrientation=(window.innerWidth>window.innerHeight)?'landscape':'portrait';
+const rotMask=$('rotMask');
 
 function clearVpFixTimers(){
   for(let i=0;i<vpFixTimers.length;i++)clearTimeout(vpFixTimers[i]);
   vpFixTimers=[];
 }
 
-/* ページが勝手にスクロールしている分を強制的に戻す（座標ズレの直接原因） */
 function resetScrollPositions(){
   try{window.scrollTo(0,0)}catch(e){}
   const d=document.documentElement,b=document.body;
@@ -260,38 +250,63 @@ function resetScrollPositions(){
   if(d.scrollLeft)d.scrollLeft=0;
   if(b.scrollTop)b.scrollTop=0;
   if(b.scrollLeft)b.scrollLeft=0;
+  const stage=$('stage');
+  if(stage&&stage.scrollTop)stage.scrollTop=0;
+  /* iframe 内部のスクロール位置が横向き時のまま残ると
+     縦に切り替わった瞬間、内容が下へズレて見える */
+  try{
+    const runner=$('runner');
+    if(runner&&runner.contentWindow){
+      const cw=runner.contentWindow;
+      if(cw.scrollX||cw.scrollY)cw.scrollTo(0,0);
+      const cd=runner.contentDocument;
+      if(cd){
+        if(cd.documentElement){
+          if(cd.documentElement.scrollTop)cd.documentElement.scrollTop=0;
+          if(cd.documentElement.scrollLeft)cd.documentElement.scrollLeft=0;
+        }
+        if(cd.body){
+          if(cd.body.scrollTop)cd.body.scrollTop=0;
+          if(cd.body.scrollLeft)cd.body.scrollLeft=0;
+        }
+      }
+    }
+  }catch(e){}
 }
 
-/* 合成レイヤーを作り直して描画位置とヒットテスト位置を一致させる */
-function forceRepaint(el){
-  if(!el)return;
-  el.style.transform='translate3d(0,0,0)';
-  void el.offsetHeight; /* 強制リフロー */
-  requestAnimationFrame(function(){
-    el.style.transform='';
-    void el.offsetHeight;
-  });
+function showRotMask(){
+  if(!rotMask)return;
+  clearTimeout(rotMaskTimer);
+  rotMask.classList.add('show');
+}
+
+function hideRotMaskSoon(){
+  if(!rotMask)return;
+  clearTimeout(rotMaskTimer);
+  rotMaskTimer=setTimeout(function(){
+    requestAnimationFrame(function(){
+      requestAnimationFrame(function(){
+        resetScrollPositions();
+        rotMask.classList.remove('show');
+      });
+    });
+  },120);
 }
 
 function relayoutAfterRotation(){
   resetScrollPositions();
-  forceRepaint($('app'));
-
-  const runner=$('runner');
-  if(runner){
-    /* iframe を一度レイアウトツリーから外して内部レイアウトを再構築させる。
-       同一タスク内で戻すので画面のチラつきは発生しない。 */
-    const prev=runner.style.display;
-    runner.style.display='none';
-    void runner.offsetHeight;
-    runner.style.display=prev||'block';
-  }
-  forceRepaint($('runtime'));
+  const app=$('app'),runtime=$('runtime');
+  if(app)void app.offsetHeight;
+  if(runtime)void runtime.offsetHeight;
 }
 
 function scheduleViewportFix(){
   clearVpFixTimers();
-  /* iOS は回転直後にレイアウトが確定しないため、時間をずらして複数回補正する */
+  /* 描画前に反映させるため同期的にリセット＋マスク表示 */
+  resetScrollPositions();
+  showRotMask();
+  hideRotMaskSoon();
+  /* iOS は回転直後にレイアウトが確定しないため時間をずらして複数回補正 */
   const delays=[0,50,120,250,400,700,1000];
   for(let i=0;i<delays.length;i++){
     vpFixTimers.push(setTimeout(relayoutAfterRotation,delays[i]));
@@ -311,14 +326,13 @@ window.addEventListener('pageshow',function(){setTimeout(relayoutAfterRotation,0
 if(window.visualViewport){
   window.visualViewport.addEventListener('resize',function(){
     const vv=window.visualViewport;
-    if(vv&&Math.abs(vv.scale-1)>0.02)return; /* ピンチズーム中は触らない */
+    if(vv&&Math.abs(vv.scale-1)>0.02)return;
     resetScrollPositions();
   },{passive:true});
 }
 
 setTimeout(()=>document.body.classList.remove('booting'),1500);
 
-/* アイコン生成（PNG形式）: 黒背景 + グレー/白の3x3角丸タイルで＋を表現 */
 function roundRectPath(ctx,x,y,w,h,r){
   ctx.beginPath();
   ctx.moveTo(x+r,y);
@@ -335,42 +349,31 @@ function roundRectPath(ctx,x,y,w,h,r){
 function generateDefaultIcon(){
   const S=512,c=document.createElement('canvas');c.width=c.height=S;
   const ctx=c.getContext('2d');
-
   const R=Math.round(S*0.2237);
   roundRectPath(ctx,0,0,S,S,R);
   ctx.save();
   ctx.clip();
-
   const bg=ctx.createLinearGradient(0,0,0,S);
   bg.addColorStop(0,'#1a1a1c');
   bg.addColorStop(0.5,'#0c0c0e');
   bg.addColorStop(1,'#000000');
   ctx.fillStyle=bg;
   ctx.fillRect(0,0,S,S);
-
   const rad=ctx.createRadialGradient(S*0.3,S*0.25,0,S*0.3,S*0.25,S*0.9);
   rad.addColorStop(0,'rgba(255,255,255,0.06)');
   rad.addColorStop(1,'rgba(255,255,255,0)');
   ctx.fillStyle=rad;
   ctx.fillRect(0,0,S,S);
-
   const PAD=S*0.105;
   const GAP=S*0.052;
   const TILE=(S - PAD*2 - GAP*2)/3;
   const TR=TILE*0.235;
-
-  const pattern=[
-    [0,1,0],
-    [1,1,1],
-    [0,1,0]
-  ];
-
+  const pattern=[[0,1,0],[1,1,1],[0,1,0]];
   for(let row=0;row<3;row++){
     for(let col=0;col<3;col++){
       const x=PAD+col*(TILE+GAP);
       const y=PAD+row*(TILE+GAP);
       const isPlus=pattern[row][col]===1;
-
       ctx.save();
       ctx.shadowColor=isPlus?'rgba(160,190,255,0.18)':'rgba(0,0,0,0.5)';
       ctx.shadowBlur=S*0.02;
@@ -389,7 +392,6 @@ function generateDefaultIcon(){
       ctx.fillStyle=tg;
       ctx.fill();
       ctx.restore();
-
       ctx.save();
       roundRectPath(ctx,x,y,TILE,TILE,TR);
       ctx.clip();
@@ -398,7 +400,6 @@ function generateDefaultIcon(){
       hl.addColorStop(1,'rgba(255,255,255,0)');
       ctx.fillStyle=hl;
       ctx.fillRect(x,y,TILE,TILE*0.5);
-
       const bs=ctx.createLinearGradient(x,y+TILE*0.6,x,y+TILE);
       bs.addColorStop(0,'rgba(0,0,0,0)');
       bs.addColorStop(1,isPlus?'rgba(0,0,0,0.14)':'rgba(0,0,0,0.34)');
@@ -407,19 +408,14 @@ function generateDefaultIcon(){
       ctx.restore();
     }
   }
-
   ctx.restore();
   return c.toDataURL('image/png');
 }
 const defaultIcon=generateDefaultIcon();
 
-/* アプリ名の文字数制限: 全角文字(日本語含む)は8文字、半角(英語含む)は12文字 */
 function limitAppName(v){
   const chars=Array.from(String(v==null?'':v));
-  const hasWide=chars.some(c=>{
-    const cp=c.codePointAt(0);
-    return cp>0x7F;
-  });
+  const hasWide=chars.some(c=>{const cp=c.codePointAt(0);return cp>0x7F;});
   const max=hasWide?8:12;
   return chars.slice(0,max).join('');
 }
@@ -449,7 +445,8 @@ function injectIframeCSS() {
       if (old) old.remove();
       var style = doc.createElement('style');
       style.id = '__app_plus_injected';
-      style.textContent = '*, *::before, *::after { -webkit-backdrop-filter: none !important; backdrop-filter: none !important; }';
+      /* overflow-anchor:none で回転時のスクロールアンカリングによる自動ズレを抑止 */
+      style.textContent = '*, *::before, *::after { -webkit-backdrop-filter: none !important; backdrop-filter: none !important; } html, body { overflow-anchor: none !important; }';
       doc.head.appendChild(style);
 
       var bg = doc.documentElement.style.backgroundColor || doc.body.style.backgroundColor || window.getComputedStyle(doc.body).backgroundColor;
@@ -459,6 +456,7 @@ function injectIframeCSS() {
       if (bg && bg !== 'rgba(0, 0, 0, 0)' && bg !== 'transparent') {
         $('runtime').style.backgroundColor = bg;
         $('app').style.backgroundColor = bg;
+        if (rotMask) rotMask.style.backgroundColor = bg;
         var metaTheme = document.querySelector('meta[name="theme-color"]');
         if (metaTheme) metaTheme.content = bg;
       }
@@ -469,7 +467,6 @@ function setRunner(html) {
   $('runner').srcdoc = html;
   $('runner').onload = function(){
     injectIframeCSS();
-    /* 表示直後にもレイアウトを確定させる */
     setTimeout(relayoutAfterRotation,0);
   };
 }
@@ -574,7 +571,6 @@ function createMemoRow(item, idx){
   del.addEventListener('click', function(){
     memoItems.splice(idx, 1);
     saveMemoItemsSoon();
-    /* キーボードを出さないため、フォーカス移動なしで再描画 */
     renderMemoList();
   });
 
@@ -584,7 +580,6 @@ function createMemoRow(item, idx){
 
 function renderMemoList(focusIdx){
   const list = $('memoList');
-  /* すべて削除された場合でも入力欄を1つは表示する */
   if (!memoItems.length) {
     memoItems.push({ text: '', checked: false });
     saveMemoItemsSoon();
@@ -626,7 +621,6 @@ function render(){
 function counts(){$('setupCount').textContent=[...$('htmlSetup').value].length.toLocaleString()+'文字';$('htmlCount').textContent=[...$('htmlCode').value].length.toLocaleString()+'文字';updateMemoCount()}
 function drawerOpen(){
   if(!s.html)return;
-  /* 設定を開いた時は常に改善メモを表示 */
   tab('memoPanel');
   $('drawer').classList.add('open');
   $('shade').classList.add('show');
@@ -638,7 +632,6 @@ async function png(f){let b=await createImageBitmap(f),z=Math.min(b.width,b.heig
 async function chooseIcon(f){if(!f)return;try{s.icon=await png(f);$('iconPreview').src=s.icon;meta();toast('アイコンを登録しました')}catch{toast('画像を読み込めませんでした')}}
 function bytes(n){let u=['B','KB','MB','GB'],i=0;while(n>=1024&&i<3){n/=1024;i++}return n.toFixed(i?1:0)+' '+u[i]}
 
-/* ストレージ表示: 分母は100MB固定 */
 const STORAGE_CAP=100*1024*1024;
 async function storage(){
   try{
@@ -649,7 +642,6 @@ async function storage(){
   }catch{$('storageText').textContent='取得できません'}
 }
 
-/* バックアップ目安表示用: 現在のアプリデータサイズ（バイト） */
 function appBytes(){
   try{return new Blob([JSON.stringify({html:s.html,previousHtml:s.previousHtml,memo:s.memo,memoChecked:s.memoChecked})]).size}catch(e){return 0}
 }
@@ -660,7 +652,6 @@ function fmtDate(iso){
   return `${d.getFullYear()}/${p(d.getMonth()+1)}/${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`;
 }
 
-/* バックアップ枠: 前回のバックアップからの増減 / 復元枠: 前回のバックアップ日時 */
 function backupInfo(){
   const bEl=$('backupInfo');
   if(bEl){
@@ -719,7 +710,6 @@ async function importBackup(f){try{let o=JSON.parse(await f.text());if(o.format!
   if(o.localStorage&&confirm('バックアップ内のlocalStorageも復元しますか？'))for(let[k,v]of Object.entries(o.localStorage))if(typeof v==='string')localStorage.setItem(k,v);
   render();toast('復元しました。IndexedDBの実行データは対象外です')}catch(e){alert('復元できませんでした：'+e.message)}}
 
-/* アプリ名入力（日本語8文字 / 英語12文字の制限） */
 const nameInput=$('setupName');
 function syncName(){
   const limited=limitAppName(nameInput.value);
@@ -737,13 +727,11 @@ nameInput.addEventListener('blur',syncName);
 
 $('iconFile').onchange=e=>chooseIcon(e.target.files?.[0]);
 
-/* アイコン画像タップでファイル選択を開く */
 $('iconPreview').addEventListener('click',()=>$('iconFile').click());
 $('iconPreview').addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();$('iconFile').click()}});
 
 $('firstSave').onclick=async()=>{let v=$('htmlSetup').value;if(!v.trim()){toast('HTMLを入力してください');return}s.html=v;s.previousHtml='';s.memo='';s.memoChecked=[];await put();render();toast('HTMLを登録しました')};
 
-/* 未登録画面の復元ボタン: ドロワー内のバックアップファイル選択を共有 */
 $('setupRestore').onclick=()=>$('backupFile').click();
 
 $('htmlSetup').addEventListener('input',counts);$('htmlCode').addEventListener('input',counts);
@@ -753,7 +741,6 @@ $('copyHtml').onclick=async()=>{try{await navigator.clipboard.writeText($('htmlC
 $('clearHtml').onclick=()=>{$('htmlCode').value='';counts();$('htmlCode').focus();toast('編集欄をクリアしました')};
 $('restoreHtml').onclick=()=>{if(!s.previousHtml){toast('戻せる履歴がありません');return}if(confirm('直前のHTMLを編集欄に戻しますか？')){$('htmlCode').value=s.previousHtml;counts();$('htmlCode').scrollTop=0}};
 
-/* 改善メモ操作 */
 $('addMemo').onclick=function(){
   memoItems.push({ text: '', checked: false });
   saveMemoItemsSoon();
@@ -791,7 +778,6 @@ $('backupFile').onchange=e=>{if(e.target.files[0])importBackup(e.target.files[0]
 document.querySelectorAll('.tab').forEach(b=>b.onclick=()=>tab(b.dataset.panel));
 $('close').onclick=drawerClose;$('shade').onclick=drawerClose;
 
-/* 右端エッジ操作（iframe内D&Dへの干渉を最小限にする） */
 $('edge').addEventListener('pointerdown',function(e){
   edgeState={x:e.clientX,y:e.clientY,t:Date.now(),moved:false};
   ex=edgeState.x;ey=edgeState.y;
