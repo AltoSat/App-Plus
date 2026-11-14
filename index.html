@@ -225,28 +225,25 @@ document.addEventListener('touchend',function(e){
 /* ============================================================
    画面回転対策（縦横共通）
    ------------------------------------------------------------
-   【縦→横で回転終了直後に画面が上へ動く不具合の原因】
-   回転直後、iframe内（登録HTML）のセーフエリア(env(safe-area-inset-*))は
-   縦持ちの古い値（上に約50px）のまま1回レイアウトされ、画面が下にずれて表示される。
-   従来は 100/250/500/800ms の固定タイマーで iframe の再レイアウトを
-   行っていたため、回転終了と同時期に発火した再レイアウトの瞬間に
-   正しい位置（上）へ「ジャンプ」して見えていた。
+   【根本原因】
+   登録HTMLはiframe内で動くため、その中の env(safe-area-inset-*) は
+   iframe自身が再評価する。縦→横の回転直後、iframe側は縦持ち時の
+   上セーフエリア（約50px）のまま1回レイアウトされ、画面全体が下にずれる。
+   親側(このページ)は正しい値をすでに持っているのに、iframeへ伝わるのが
+   遅れるのが原因。従来のタイマーでの再レイアウト(display切替)は
+   後から強制的に正しい値へ直していただけで、ずれ自体は防げなかった。
 
-   【修正方針】
-   ・回転開始で iframe を一旦不可視にする（ずれた中間状態を見せない）
-   ・固定タイマーをやめ、画面サイズ＋セーフエリア＋visualViewport が
-     安定するまで rAF で監視する
-   ・安定後に1回だけ再レイアウトし、正しい位置になってから表示する
+   【修正】
+   ・登録HTML内の env(safe-area-inset-◯) を、親が計測した値を渡す
+     CSS変数 var(--app-sai-◯) に置き換えて実行する（保存データは無加工）
+   ・親側の見えないプローブで実測した値を、回転中は毎フレーム
+     iframeの変数へ同期する → iframeのレイアウトが親と同じ瞬間に確定する
+   ・display切替・非表示・タイマー再レイアウトは廃止
    ============================================================ */
 let rotRafId=null;
-let rotToken=0;
 let rotEndTimer=null;
-let rotLateTimer=null;
 let lastOrientation=(window.innerWidth>window.innerHeight)?'landscape':'portrait';
-
-const ROT_MIN_MS=200;      // 回転アニメーション中に早まって確定しないための最低待機
-const ROT_STABLE_FRAMES=8; // この連続フレーム数、値が変わらなければ安定とみなす
-const ROT_MAX_MS=1500;     // 安定しなくても必ず表示に戻す上限
+const SAI_SIDES=['top','right','bottom','left'];
 
 /* セーフエリア計測用プローブ（見えない要素のpaddingでenv()を読む） */
 const probe=document.createElement('div');
@@ -255,22 +252,45 @@ probe.style.cssText='position:fixed;left:0;top:0;width:0;height:0;visibility:hid
   +'padding:env(safe-area-inset-top,0px) env(safe-area-inset-right,0px) env(safe-area-inset-bottom,0px) env(safe-area-inset-left,0px)';
 document.body.appendChild(probe);
 
-function viewSig(){
+function readSai(){
   let cs;
-  try{cs=getComputedStyle(probe)}catch(e){cs=null}
-  const vv=window.visualViewport;
-  return [
-    window.innerWidth,window.innerHeight,
-    cs?cs.paddingTop:'',cs?cs.paddingRight:'',cs?cs.paddingBottom:'',cs?cs.paddingLeft:'',
-    vv?Math.round(vv.width):0,vv?Math.round(vv.height):0,
-    vv?Math.round(vv.offsetTop):0,vv?Math.round(vv.offsetLeft):0
-  ].join('|');
+  try{cs=getComputedStyle(probe)}catch(e){return {top:'0px',right:'0px',bottom:'0px',left:'0px'}}
+  return {top:cs.paddingTop||'0px',right:cs.paddingRight||'0px',bottom:cs.paddingBottom||'0px',left:cs.paddingLeft||'0px'};
+}
+function saiCss(v){
+  return ':root{--app-sai-top:'+v.top+';--app-sai-right:'+v.right+';--app-sai-bottom:'+v.bottom+';--app-sai-left:'+v.left+'}';
+}
+/* 親で実測した値をiframeの変数へ反映（値が変わった時だけ書き込む） */
+function syncSai(){
+  try{
+    const runner=$('runner');
+    const doc=runner&&runner.contentDocument;
+    if(!doc||!doc.documentElement)return;
+    const v=readSai(),st=doc.documentElement.style;
+    for(let i=0;i<SAI_SIDES.length;i++){
+      const k=SAI_SIDES[i],name='--app-sai-'+k;
+      if(st.getPropertyValue(name)!==v[k])st.setProperty(name,v[k]);
+    }
+  }catch(e){}
+}
+/* env(safe-area-inset-top[, fallback]) → var(--app-sai-top, fallback) */
+function rewriteEnv(html){
+  return String(html).replace(/env\(\s*safe-area-inset-(top|right|bottom|left)\s*(?:,\s*([^()]*?))?\s*\)/gi,function(m,side,fb){
+    return 'var(--app-sai-'+side.toLowerCase()+','+((fb&&fb.trim())||'0px')+')';
+  });
+}
+/* iframeに渡すHTMLを作る（初回描画から正しい値が入るよう <head> 直後に変数を注入） */
+function buildSrcdoc(html){
+  const out=rewriteEnv(html);
+  const tag='<style id="__app_plus_sai">'+saiCss(readSai())+'</style>';
+  if(/<head(?:\s[^>]*)?>/i.test(out))return out.replace(/<head(?:\s[^>]*)?>/i,function(m){return m+tag});
+  if(/<html(?:\s[^>]*)?>/i.test(out))return out.replace(/<html(?:\s[^>]*)?>/i,function(m){return m+tag});
+  return out;
 }
 
 function clearRotTimers(){
   if(rotRafId){cancelAnimationFrame(rotRafId);rotRafId=null}
   if(rotEndTimer){clearTimeout(rotEndTimer);rotEndTimer=null}
-  if(rotLateTimer){clearTimeout(rotLateTimer);rotLateTimer=null}
 }
 
 function resetScrollPositions(){
@@ -302,83 +322,23 @@ function resetScrollPositions(){
   }catch(e){}
 }
 
-function forceRepaint(el){
-  if(!el)return;
-  el.style.transform='translate3d(0,0,0)';
-  void el.offsetHeight;
-  requestAnimationFrame(function(){
-    el.style.transform='';
-    void el.offsetHeight;
-  });
-}
-
-function relayoutAfterRotation(){
-  resetScrollPositions();
-  forceRepaint($('app'));
-  const runner=$('runner');
-  if(runner){
-    const prev=runner.style.display;
-    runner.style.display='none';
-    void runner.offsetHeight;
-    runner.style.display=prev||'block';
-  }
-  forceRepaint($('runtime'));
-}
-
-function revealRunner(){
-  const runner=$('runner');
-  if(runner)runner.style.visibility='';
-  document.documentElement.classList.remove('rotating');
-}
-
+/* 回転中は毎フレーム「スクロール位置リセット＋セーフエリア同期」だけを行う */
 function scheduleViewportFix(){
   clearRotTimers();
-  const token=++rotToken;
   const html=document.documentElement;
-  const runner=$('runner');
-
-  /* 回転中：transition停止＋iframeを不可視（ずれた中間状態を見せない） */
   html.classList.add('rotating');
-  if(runner)runner.style.visibility='hidden';
-  resetScrollPositions();
-
   const t0=performance.now();
-  let last=viewSig(),stable=0;
-
-  function finish(){
-    if(token!==rotToken)return;
-    rotRafId=null;
+  function loop(){
     resetScrollPositions();
-    relayoutAfterRotation();           // 安定した最終値で1回だけ再レイアウト
-    const sigAtFinish=viewSig();
-    requestAnimationFrame(function(){
-      requestAnimationFrame(function(){
-        if(token!==rotToken)return;
-        resetScrollPositions();
-        revealRunner();                // 正しい位置になってから表示
-        /* 安全網：表示後に値が変わっていたら（遅れて確定した場合）もう一度やり直す */
-        rotLateTimer=setTimeout(function(){
-          rotLateTimer=null;
-          if(token!==rotToken)return;
-          if(viewSig()!==sigAtFinish)scheduleViewportFix();
-        },400);
-      });
-    });
-  }
-
-  function tick(){
-    if(token!==rotToken)return;
-    resetScrollPositions();
-    const sig=viewSig();
-    if(sig===last){stable++}else{stable=0;last=sig}
-    const el=performance.now()-t0;
-    if((el>=ROT_MIN_MS&&stable>=ROT_STABLE_FRAMES)||el>=ROT_MAX_MS){
-      finish();
-      return;
+    syncSai();
+    if(performance.now()-t0<800){
+      rotRafId=requestAnimationFrame(loop);
+    }else{
+      rotRafId=null;
+      html.classList.remove('rotating');
     }
-    rotRafId=requestAnimationFrame(tick);
   }
-  rotRafId=requestAnimationFrame(tick);
+  loop();
 }
 
 window.addEventListener('orientationchange',scheduleViewportFix,{passive:true});
@@ -387,21 +347,23 @@ if(window.screen&&screen.orientation&&screen.orientation.addEventListener){
 }
 window.addEventListener('resize',function(){
   resetScrollPositions();
+  syncSai();
   const o=(window.innerWidth>window.innerHeight)?'landscape':'portrait';
   if(o!==lastOrientation){lastOrientation=o;scheduleViewportFix()}
 },{passive:true});
-window.addEventListener('pageshow',function(){setTimeout(relayoutAfterRotation,0)});
+window.addEventListener('pageshow',function(){setTimeout(function(){resetScrollPositions();syncSai()},0)});
 if(window.visualViewport){
   window.visualViewport.addEventListener('resize',function(){
     const vv=window.visualViewport;
     if(vv&&Math.abs(vv.scale-1)>0.02)return;
     resetScrollPositions();
+    syncSai();
   },{passive:true});
 }
 
 if(window.ResizeObserver){
   try{
-    const ro=new ResizeObserver(function(){resetScrollPositions()});
+    const ro=new ResizeObserver(function(){resetScrollPositions();syncSai()});
     ro.observe($('runner'));
   }catch(e){}
 }
@@ -541,10 +503,11 @@ function injectIframeCSS() {
   } catch (e) {}
 }
 function setRunner(html) {
-  $('runner').srcdoc = html;
+  $('runner').srcdoc = buildSrcdoc(html);
   $('runner').onload = function(){
     injectIframeCSS();
-    setTimeout(relayoutAfterRotation,0);
+    syncSai();
+    resetScrollPositions();
   };
 }
 
