@@ -149,7 +149,7 @@ h1{font-size:21px;margin:0}h2{font-size:15px;margin:0}p,.hint{font-size:13px;lin
 <div class="title-row"><h2>改善メモ</h2><div id="memoCount" class="count">0 / 10,000文字</div></div>
 <div id="memoList" class="memo-list"></div>
 <div class="row"><button id="addMemo">＋ 項目を追加</button></div>
-<div class="row"><button class="danger" id="clearMemo">クリア</button><button id="copyMemo">コピー</button><button class="primary btn-share" id="improve"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/><path d="M16 6l-4-4-4 4" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/><path d="M12 2v13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg><span>AIに依頼</span></button></div>
+<div class="row"><button class="danger" id="clearMemo">クリア</button><button id="copyMemo">コピー</button><button class="primary btn-share" id="improve"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/><path d="M16 6l-4-4-4 4" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/><path d="M12 2v13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg><span>AI依頼</span></button></div>
 </div>
 </section>
 <section class="panel" id="htmlPanel">
@@ -488,7 +488,8 @@ function createMemoRow(item, idx){
   del.addEventListener('click', function(){
     memoItems.splice(idx, 1);
     saveMemoItemsSoon();
-    renderMemoList(Math.min(idx, memoItems.length - 1));
+    /* キーボードを出さないため、フォーカス移動なしで再描画 */
+    renderMemoList();
   });
 
   row.append(cb, ta, del);
@@ -497,20 +498,18 @@ function createMemoRow(item, idx){
 
 function renderMemoList(focusIdx){
   const list = $('memoList');
-  list.innerHTML = '';
+  /* すべて削除された場合でも入力欄を1つは表示する */
   if (!memoItems.length) {
-    const empty = document.createElement('div');
-    empty.className = 'memo-empty';
-    empty.textContent = '「＋ 項目を追加」から改善点を追加してください';
-    list.append(empty);
-  } else {
-    memoItems.forEach(function(item, idx){
-      list.append(createMemoRow(item, idx));
-    });
-    requestAnimationFrame(function(){
-      list.querySelectorAll('.memo-text').forEach(function(ta){ resizeMemoText(ta); });
-    });
+    memoItems.push({ text: '', checked: false });
+    saveMemoItemsSoon();
   }
+  list.innerHTML = '';
+  memoItems.forEach(function(item, idx){
+    list.append(createMemoRow(item, idx));
+  });
+  requestAnimationFrame(function(){
+    list.querySelectorAll('.memo-text').forEach(function(ta){ resizeMemoText(ta); });
+  });
   updateMemoCount();
   if (focusIdx !== undefined && focusIdx >= 0 && focusIdx < memoItems.length) {
     const tas = list.querySelectorAll('.memo-text');
@@ -539,7 +538,14 @@ function render(){
   document.body.classList.remove('booting');
 }
 function counts(){$('setupCount').textContent=[...$('htmlSetup').value].length.toLocaleString()+'文字';$('htmlCount').textContent=[...$('htmlCode').value].length.toLocaleString()+'文字';updateMemoCount()}
-function drawerOpen(){if(!s.html)return;$('drawer').classList.add('open');$('shade').classList.add('show');$('edge').style.display='none'}
+function drawerOpen(){
+  if(!s.html)return;
+  /* 設定を開いた時は常に改善メモを表示 */
+  tab('memoPanel');
+  $('drawer').classList.add('open');
+  $('shade').classList.add('show');
+  $('edge').style.display='none';
+}
 function drawerClose(){$('drawer').classList.remove('open');$('shade').classList.remove('show');$('edge').style.display=s.html?'block':'none'}
 function tab(id){document.querySelectorAll('.tab').forEach(b=>b.classList.toggle('active',b.dataset.panel===id));document.querySelectorAll('.panel').forEach(p=>p.classList.toggle('active',p.id===id));$('panels').scrollTop=0;if(id==='backupPanel'){storage();backupInfo()}}
 async function png(f){let b=await createImageBitmap(f),z=Math.min(b.width,b.height),c=document.createElement('canvas');c.width=c.height=512;c.getContext('2d').drawImage(b,(b.width-z)/2,(b.height-z)/2,z,z,0,0,512,512);return c.toDataURL('image/png')}
