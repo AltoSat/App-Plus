@@ -244,7 +244,7 @@ let rotEndTimer=null;
 let rotLateTimer=null;
 let lastOrientation=(window.innerWidth>window.innerHeight)?'landscape':'portrait';
 
-const ROT_MIN_MS=450;      // 回転アニメーション中に早まって確定しないための最低待機
+const ROT_MIN_MS=200;      // 回転アニメーション中に早まって確定しないための最低待機
 const ROT_STABLE_FRAMES=8; // この連続フレーム数、値が変わらなければ安定とみなす
 const ROT_MAX_MS=1500;     // 安定しなくても必ず表示に戻す上限
 
