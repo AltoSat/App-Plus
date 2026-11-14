@@ -18,6 +18,13 @@
 html,body{margin:0;padding:0;width:100%;height:100%;overflow:hidden;background:var(--bg);overscroll-behavior:none;overscroll-behavior-x:none;-webkit-text-size-adjust:100%;touch-action:pan-y}
 body{color:var(--text);font-family:-apple-system,BlinkMacSystemFont,sans-serif;-webkit-tap-highlight-color:transparent;-webkit-user-select:none;user-select:none}
 body.booting #stage{visibility:hidden}
+
+/* 回転中は全transition/animationを停止して合成のちらつきを抑止 */
+html.rotating *, html.rotating *::before, html.rotating *::after{
+  transition: none !important;
+  animation: none !important;
+}
+
 button,input,textarea{font:inherit;font-size:16px}
 button{border:1px solid var(--line);border-radius:12px;padding:11px 13px;min-height:44px;background:#1b212b;color:var(--text);font-weight:650;-webkit-tap-highlight-color:transparent}
 button:active{background:#242c3a}
@@ -28,7 +35,8 @@ input[type=text],textarea{width:100%;max-width:100%;min-width:0;border:1px solid
 input::placeholder,textarea::placeholder{color:#5a6478}
 textarea{resize:vertical}
 
-#app{position:fixed;inset:0;width:100%;height:100%;overflow:hidden;background:var(--bg);z-index:1;transition:background-color .2s}
+/* 合成レイヤーを安定させ、回転時の位置ズレを防ぐ */
+#app{position:fixed;inset:0;width:100%;height:100%;overflow:hidden;background:var(--bg);z-index:1;transition:background-color .2s;will-change:transform;backface-visibility:hidden}
 
 #stage{position:absolute;inset:0;overflow-y:auto;overflow-x:hidden;background:var(--bg);padding:calc(20px + env(safe-area-inset-top,0px)) 16px calc(24px + env(safe-area-inset-bottom,0px));z-index:10;touch-action:pan-y}
 .card{max-width:560px;width:100%;margin:0 auto 14px;background:var(--panel);border:1px solid var(--line);border-radius:18px;padding:20px;display:flex;flex-direction:column;gap:14px;box-shadow:0 8px 28px #00000055}
@@ -54,8 +62,8 @@ h1{font-size:21px;margin:0}h2{font-size:15px;margin:0}p,.hint{font-size:13px;lin
 #setupName{max-width:280px;text-align:center;padding:10px 14px;border-radius:12px}
 #htmlSetup{height:40vh;min-height:220px;font-family:ui-monospace,monospace;font-size:16px;line-height:1.45}
 
-#runtime{position:absolute;inset:0;display:none;background:var(--bg);z-index:5;transition:background-color .2s;touch-action:auto}
-#runner{position:absolute;inset:0;width:100%;height:100%;border:0;display:block;background:transparent;touch-action:auto}
+#runtime{position:absolute;inset:0;display:none;background:var(--bg);z-index:5;transition:background-color .2s;touch-action:auto;will-change:transform;backface-visibility:hidden}
+#runner{position:absolute;inset:0;width:100%;height:100%;border:0;display:block;background:transparent;touch-action:auto;will-change:transform;backface-visibility:hidden}
 
 #edge{position:absolute;z-index:20;right:0;top:calc(50% - 60px);width:16px;height:120px;min-height:0;padding:0;border:0;border-radius:0;background:transparent;touch-action:pan-y;-webkit-tap-highlight-color:transparent}
 #edge::before{content:"";position:absolute;right:0;top:12px;bottom:12px;width:3px;border-radius:3px 0 0 3px;background:#ffffff1f;transition:width .18s,background .18s}
@@ -214,26 +222,33 @@ document.addEventListener('touchend',function(e){
 },{passive:false});
 
 /* ============================================================
-   画面回転（横→縦）後に「縦画面が少し下にズレた状態」が
-   1フレーム表示される不具合の対策
+   画面回転（横→縦）後に「縦画面が少し下にズレた1フレーム」が
+   出る不具合の対策
    ------------------------------------------------------------
-   原因: 親ページのリセットだけでは足りず、#stage や
-        iframe(#runner) 内部のスクロール位置が横向き時のまま
-        残り、新しい縦レイアウトでその scrollTop が 1 フレーム
-        適用されることで「下にズレた縦画面」が出る。
+   原因:
+   ・iOSの回転アニメーション用スナップショットが取られる瞬間に
+     iframe内部の 100vh / overflow-anchor / overscroll が
+     横向き時の値のまま残り、コンテンツが下方向にオフセット
+   ・#app の forceRepaint (transform 付与) が回転アニメ中に
+     コンポジットレイヤーを作り直して位置が1Fズレる
    対策:
-     1) orientationchange/resize の先頭で同期的に
-        親＋#stage＋iframe内部 のスクロールを 0 に戻す
-     2) 注入CSSに overflow-anchor:none を追加し
-        スクロールアンカリングによる自動ズレを抑止
-     3) 念のため時間をずらして複数回リセット
+   1) 回転中は全 transition/animation を停止 (html.rotating)
+   2) 最初の350msは rAF で毎フレーム scroll=0 を強制
+   3) forceRepaint を 100ms 以降にずらし、アニメ中のスナップ
+      ショットに干渉しない
+   4) iframe に overscroll-behavior / overflow-anchor / dvh を注入
+   5) ResizeObserver で iframe リサイズ時にも即スクロールリセット
    ============================================================ */
 let vpFixTimers=[];
+let rotEndTimer=null;
 let lastOrientation=(window.innerWidth>window.innerHeight)?'landscape':'portrait';
+let rotatingRafId=null;
 
 function clearVpFixTimers(){
   for(let i=0;i<vpFixTimers.length;i++)clearTimeout(vpFixTimers[i]);
   vpFixTimers=[];
+  if(rotatingRafId){cancelAnimationFrame(rotatingRafId);rotatingRafId=null}
+  if(rotEndTimer){clearTimeout(rotEndTimer);rotEndTimer=null}
 }
 
 function resetScrollPositions(){
@@ -245,8 +260,6 @@ function resetScrollPositions(){
   if(b.scrollLeft)b.scrollLeft=0;
   const stage=$('stage');
   if(stage&&stage.scrollTop)stage.scrollTop=0;
-  /* iframe内部のスクロール位置が残ると縦切り替え直後に
-     内容が下ズレして見えるため、内部も同期的にリセット */
   try{
     const runner=$('runner');
     if(runner&&runner.contentWindow){
@@ -268,7 +281,7 @@ function resetScrollPositions(){
 }
 
 /* 合成レイヤーを作り直して描画位置とヒットテスト位置を一致させる
-   （タッチズレ対策として既存挙動を維持） */
+   (タッチズレ対策として既存挙動を維持) */
 function forceRepaint(el){
   if(!el)return;
   el.style.transform='translate3d(0,0,0)';
@@ -282,11 +295,8 @@ function forceRepaint(el){
 function relayoutAfterRotation(){
   resetScrollPositions();
   forceRepaint($('app'));
-
   const runner=$('runner');
   if(runner){
-    /* iframe を一度レイアウトツリーから外して内部レイアウトを
-       再構築させる（同一タスク内で戻すので画面のチラつきなし） */
     const prev=runner.style.display;
     runner.style.display='none';
     void runner.offsetHeight;
@@ -297,11 +307,35 @@ function relayoutAfterRotation(){
 
 function scheduleViewportFix(){
   clearVpFixTimers();
-  /* 重要: setTimeout(0) より先に同期的に 0 へ戻す。
-     これをしないと新レイアウトの初回描画に旧スクロール位置が
-     乗って「下ズレした縦画面」が 1 フレーム出る。 */
+  const html=document.documentElement;
+
+  /* 回転中だけ transition/animation を止める */
+  html.classList.add('rotating');
+  if(rotEndTimer)clearTimeout(rotEndTimer);
+  rotEndTimer=setTimeout(function(){
+    html.classList.remove('rotating');
+    resetScrollPositions();
+  },600);
+
+  /* 同期的にスクロールリセット */
   resetScrollPositions();
-  const delays=[0,50,120,250,400,700,1000];
+
+  /* 最初の350msは毎フレーム scroll=0 を強制
+     (iOSが後追いでリストアしてくるスクロール位置を潰す) */
+  const start=performance.now();
+  function rafReset(){
+    resetScrollPositions();
+    if(performance.now()-start<350){
+      rotatingRafId=requestAnimationFrame(rafReset);
+    }else{
+      rotatingRafId=null;
+    }
+  }
+  rotatingRafId=requestAnimationFrame(rafReset);
+
+  /* forceRepaint は100ms以降に。回転アニメ中のスナップショットに
+     コンポジットレイヤー操作が干渉しないようにする */
+  const delays=[100,250,500,800];
   for(let i=0;i<delays.length;i++){
     vpFixTimers.push(setTimeout(relayoutAfterRotation,delays[i]));
   }
@@ -323,6 +357,15 @@ if(window.visualViewport){
     if(vv&&Math.abs(vv.scale-1)>0.02)return;
     resetScrollPositions();
   },{passive:true});
+}
+
+/* iframeのリサイズにも即反応してスクロールをリセット
+   (回転スナップショットの直前に取りこぼしを拾う保険) */
+if(window.ResizeObserver){
+  try{
+    const ro=new ResizeObserver(function(){resetScrollPositions()});
+    ro.observe($('runner'));
+  }catch(e){}
 }
 
 setTimeout(()=>document.body.classList.remove('booting'),1500);
@@ -439,9 +482,18 @@ function injectIframeCSS() {
       if (old) old.remove();
       var style = doc.createElement('style');
       style.id = '__app_plus_injected';
-      /* overflow-anchor:none で回転時のスクロールアンカリングによる
-         自動ズレ（下ズレの一因）を抑止 */
-      style.textContent = '*, *::before, *::after { -webkit-backdrop-filter: none !important; backdrop-filter: none !important; } html, body { overflow-anchor: none !important; }';
+      /* 回転スナップショット対策:
+         ・overflow-anchor:none で自動スクロール補正を無効化
+         ・overscroll-behavior:none でゴムバウンドを無効化
+         ・height を 100dvh フォールバックにして 100vh の遅延更新を回避 */
+      style.textContent = [
+        '*, *::before, *::after { -webkit-backdrop-filter: none !important; backdrop-filter: none !important; }',
+        'html, body { overflow-anchor: none !important; overscroll-behavior: none !important; }',
+        '@supports (height: 100dvh) {',
+        '  html { min-height: 100dvh; }',
+        '  body { min-height: 100dvh; }',
+        '}'
+      ].join('\n');
       doc.head.appendChild(style);
 
       var bg = doc.documentElement.style.backgroundColor || doc.body.style.backgroundColor || window.getComputedStyle(doc.body).backgroundColor;
