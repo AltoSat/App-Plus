@@ -225,20 +225,52 @@ document.addEventListener('touchend',function(e){
 /* ============================================================
    画面回転対策（縦横共通）
    ------------------------------------------------------------
-   縦: スクロール位置残りによる下ズレ → 同期リセット＋rAFループで解決
-   横: will-change/backface-visibility による iframe 合成
-       レイヤーのセーフエリア1フレーム遅延 → 該当プロパティを削除
-   ============================================================ */
-let vpFixTimers=[];
-let rotEndTimer=null;
-let lastOrientation=(window.innerWidth>window.innerHeight)?'landscape':'portrait';
-let rotatingRafId=null;
+   【縦→横で回転終了直後に画面が上へ動く不具合の原因】
+   回転直後、iframe内（登録HTML）のセーフエリア(env(safe-area-inset-*))は
+   縦持ちの古い値（上に約50px）のまま1回レイアウトされ、画面が下にずれて表示される。
+   従来は 100/250/500/800ms の固定タイマーで iframe の再レイアウトを
+   行っていたため、回転終了と同時期に発火した再レイアウトの瞬間に
+   正しい位置（上）へ「ジャンプ」して見えていた。
 
-function clearVpFixTimers(){
-  for(let i=0;i<vpFixTimers.length;i++)clearTimeout(vpFixTimers[i]);
-  vpFixTimers=[];
-  if(rotatingRafId){cancelAnimationFrame(rotatingRafId);rotatingRafId=null}
+   【修正方針】
+   ・回転開始で iframe を一旦不可視にする（ずれた中間状態を見せない）
+   ・固定タイマーをやめ、画面サイズ＋セーフエリア＋visualViewport が
+     安定するまで rAF で監視する
+   ・安定後に1回だけ再レイアウトし、正しい位置になってから表示する
+   ============================================================ */
+let rotRafId=null;
+let rotToken=0;
+let rotEndTimer=null;
+let rotLateTimer=null;
+let lastOrientation=(window.innerWidth>window.innerHeight)?'landscape':'portrait';
+
+const ROT_MIN_MS=450;      // 回転アニメーション中に早まって確定しないための最低待機
+const ROT_STABLE_FRAMES=8; // この連続フレーム数、値が変わらなければ安定とみなす
+const ROT_MAX_MS=1500;     // 安定しなくても必ず表示に戻す上限
+
+/* セーフエリア計測用プローブ（見えない要素のpaddingでenv()を読む） */
+const probe=document.createElement('div');
+probe.setAttribute('aria-hidden','true');
+probe.style.cssText='position:fixed;left:0;top:0;width:0;height:0;visibility:hidden;pointer-events:none;'
+  +'padding:env(safe-area-inset-top,0px) env(safe-area-inset-right,0px) env(safe-area-inset-bottom,0px) env(safe-area-inset-left,0px)';
+document.body.appendChild(probe);
+
+function viewSig(){
+  let cs;
+  try{cs=getComputedStyle(probe)}catch(e){cs=null}
+  const vv=window.visualViewport;
+  return [
+    window.innerWidth,window.innerHeight,
+    cs?cs.paddingTop:'',cs?cs.paddingRight:'',cs?cs.paddingBottom:'',cs?cs.paddingLeft:'',
+    vv?Math.round(vv.width):0,vv?Math.round(vv.height):0,
+    vv?Math.round(vv.offsetTop):0,vv?Math.round(vv.offsetLeft):0
+  ].join('|');
+}
+
+function clearRotTimers(){
+  if(rotRafId){cancelAnimationFrame(rotRafId);rotRafId=null}
   if(rotEndTimer){clearTimeout(rotEndTimer);rotEndTimer=null}
+  if(rotLateTimer){clearTimeout(rotLateTimer);rotLateTimer=null}
 }
 
 function resetScrollPositions(){
@@ -293,34 +325,60 @@ function relayoutAfterRotation(){
   forceRepaint($('runtime'));
 }
 
+function revealRunner(){
+  const runner=$('runner');
+  if(runner)runner.style.visibility='';
+  document.documentElement.classList.remove('rotating');
+}
+
 function scheduleViewportFix(){
-  clearVpFixTimers();
+  clearRotTimers();
+  const token=++rotToken;
   const html=document.documentElement;
+  const runner=$('runner');
 
+  /* 回転中：transition停止＋iframeを不可視（ずれた中間状態を見せない） */
   html.classList.add('rotating');
-  if(rotEndTimer)clearTimeout(rotEndTimer);
-  rotEndTimer=setTimeout(function(){
-    html.classList.remove('rotating');
-    resetScrollPositions();
-  },600);
-
+  if(runner)runner.style.visibility='hidden';
   resetScrollPositions();
 
-  const start=performance.now();
-  function rafReset(){
-    resetScrollPositions();
-    if(performance.now()-start<350){
-      rotatingRafId=requestAnimationFrame(rafReset);
-    }else{
-      rotatingRafId=null;
-    }
-  }
-  rotatingRafId=requestAnimationFrame(rafReset);
+  const t0=performance.now();
+  let last=viewSig(),stable=0;
 
-  const delays=[100,250,500,800];
-  for(let i=0;i<delays.length;i++){
-    vpFixTimers.push(setTimeout(relayoutAfterRotation,delays[i]));
+  function finish(){
+    if(token!==rotToken)return;
+    rotRafId=null;
+    resetScrollPositions();
+    relayoutAfterRotation();           // 安定した最終値で1回だけ再レイアウト
+    const sigAtFinish=viewSig();
+    requestAnimationFrame(function(){
+      requestAnimationFrame(function(){
+        if(token!==rotToken)return;
+        resetScrollPositions();
+        revealRunner();                // 正しい位置になってから表示
+        /* 安全網：表示後に値が変わっていたら（遅れて確定した場合）もう一度やり直す */
+        rotLateTimer=setTimeout(function(){
+          rotLateTimer=null;
+          if(token!==rotToken)return;
+          if(viewSig()!==sigAtFinish)scheduleViewportFix();
+        },400);
+      });
+    });
   }
+
+  function tick(){
+    if(token!==rotToken)return;
+    resetScrollPositions();
+    const sig=viewSig();
+    if(sig===last){stable++}else{stable=0;last=sig}
+    const el=performance.now()-t0;
+    if((el>=ROT_MIN_MS&&stable>=ROT_STABLE_FRAMES)||el>=ROT_MAX_MS){
+      finish();
+      return;
+    }
+    rotRafId=requestAnimationFrame(tick);
+  }
+  rotRafId=requestAnimationFrame(tick);
 }
 
 window.addEventListener('orientationchange',scheduleViewportFix,{passive:true});
