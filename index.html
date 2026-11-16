@@ -97,6 +97,9 @@ h1{font-size:21px;margin:0}h2{font-size:15px;margin:0}p,.hint{font-size:13px;lin
 .btns4 button{padding-left:4px;padding-right:4px;font-size:15px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .btns3 button{padding-left:4px;padding-right:4px;font-size:15px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 
+#splitPanel{display:flex;flex-direction:column;gap:8px}
+.split-btn.active{background:#17263f;color:#a9c8ff;border-color:#2f4f86}
+
 #htmlCode{height:36vh;min-height:230px;max-height:58vh;font-family:ui-monospace,monospace;font-size:16px;line-height:1.45}
 .count{text-align:right;font-size:12px;color:var(--muted);white-space:nowrap}
 #storageBar{height:9px;border-radius:9px;background:#212a38;overflow:hidden}
@@ -146,7 +149,16 @@ h1{font-size:21px;margin:0}h2{font-size:15px;margin:0}p,.hint{font-size:13px;lin
 <div class="title-row"><h2>改善メモ</h2><div id="memoCount" class="count">0 / 10,000文字</div></div>
 <div id="memoList" class="memo-list"></div>
 <div class="row"><button id="addMemo">＋ 項目を追加</button></div>
-<div class="row btns4"><button class="danger" id="clearMemo">クリア</button><button id="copyMemo">コピー</button><button class="primary btn-share" id="improve"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/><path d="M16 6l-4-4-4 4" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/><path d="M12 2v13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg><span>AI依頼</span></button><button class="primary" id="improveSplit">3分割AI依頼</button></div>
+<div class="row btns4"><button class="danger" id="clearMemo">クリア</button><button id="copyMemo">コピー</button><button class="primary btn-share" id="improve"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/><path d="M16 6l-4-4-4 4" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/><path d="M12 2v13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg><span>AI依頼</span></button><button class="primary" id="improveSplit">分割依頼</button></div>
+<div id="splitPanel" hidden>
+<p class="hint" style="margin:0;">送信するパートを選択（複数可）</p>
+<div class="row btns3">
+<button class="split-btn active" id="selPart1">1/3</button>
+<button class="split-btn active" id="selPart2">2/3</button>
+<button class="split-btn" id="selPart3">3/3</button>
+</div>
+<div id="splitCopyRow" class="row btns3" hidden></div>
+</div>
 </div>
 </section>
 <section class="panel" id="htmlPanel">
@@ -158,11 +170,6 @@ h1{font-size:21px;margin:0}h2{font-size:15px;margin:0}p,.hint{font-size:13px;lin
 <button id="restoreHtml">復元</button>
 <button id="copyHtml">コピー</button>
 <button class="primary" id="saveHtml">保存</button>
-</div>
-<div class="row btns3">
-<button id="copyPart1" title="先頭（head・CSS含む）">1/3コピー</button>
-<button id="copyPart2" title="中間（HTML本文）">2/3コピー</button>
-<button id="copyPart3" title="末尾（JS含む）">3/3コピー</button>
 </div>
 </div>
 </section>
@@ -685,7 +692,7 @@ function drawerOpen(){
   $('shade').classList.add('show');
   $('edge').style.display='none';
 }
-function drawerClose(){$('drawer').classList.remove('open');$('shade').classList.remove('show');$('edge').style.display=s.html?'block':'none'}
+function drawerClose(){$('drawer').classList.remove('open');$('shade').classList.remove('show');$('edge').style.display=s.html?'block':'none';resetSplitMode()}
 function tab(id){document.querySelectorAll('.tab').forEach(b=>b.classList.toggle('active',b.dataset.panel===id));document.querySelectorAll('.panel').forEach(p=>p.classList.toggle('active',p.id===id));$('panels').scrollTop=0;if(id==='backupPanel'){storage();backupInfo()}}
 async function png(f){let b=await createImageBitmap(f),z=Math.min(b.width,b.height),c=document.createElement('canvas');c.width=c.height=512;c.getContext('2d').drawImage(b,(b.width-z)/2,(b.height-z)/2,z,z,0,0,512,512);return c.toDataURL('image/png')}
 async function chooseIcon(f){if(!f)return;try{s.icon=await png(f);$('iconPreview').src=s.icon;meta();toast('アイコンを登録しました')}catch{toast('画像を読み込めませんでした')}}
@@ -745,13 +752,11 @@ async function share(){
 }
 
 /* ===== HTML 3分割（連続スライス方式・連結で元に完全一致） ===== */
-// 戻り値: {p1,p2,p3, mode}  p1+p2+p3 === src を保証
 function computeSplits(html){
   const src = String(html||'');
   const len = src.length;
   if(!len) return {p1:'', p2:'', p3:'', mode:'empty'};
 
-  // 最後の </style> の直後
   let lastStyleEnd = -1;
   let m;
   const styleRe = /<\/style\s*>/gi;
@@ -759,7 +764,6 @@ function computeSplits(html){
     lastStyleEnd = m.index + m[0].length;
   }
 
-  // </style> より後ろで、最初のインライン <script src無し> の直前
   let firstScriptStart = -1;
   if(lastStyleEnd >= 0){
     const scriptRe = /<script\b([^>]*)>/gi;
@@ -774,25 +778,21 @@ function computeSplits(html){
 
   let c1, c2, mode;
 
-  // 両方の境界がある → 自然分割
   if(lastStyleEnd > 0 && firstScriptStart > lastStyleEnd && firstScriptStart < len){
     c1 = lastStyleEnd;
     c2 = firstScriptStart;
     mode = 'natural';
   }
-  // CSS境界のみ → CSS直後で切り、残りを2分割
   else if(lastStyleEnd > 0 && lastStyleEnd < len - 1){
     c1 = lastStyleEnd;
     c2 = lastStyleEnd + Math.floor((len - lastStyleEnd) / 2);
     mode = 'css-only';
   }
-  // JS境界のみ → 先頭を2分割し、JS以降を3つ目に
   else if(firstScriptStart > 1 && firstScriptStart < len){
     c1 = Math.floor(firstScriptStart / 2);
     c2 = firstScriptStart;
     mode = 'js-only';
   }
-  // 境界なし → 均等3分割
   else{
     c1 = Math.floor(len / 3);
     c2 = Math.floor(len * 2 / 3);
@@ -816,30 +816,105 @@ async function copyText(t,msg){
   try{await navigator.clipboard.writeText(t);toast(msg||'コピーしました')}catch{toast('コピーできませんでした')}
 }
 
-async function shareSplit(){
+/* ===== 分割依頼UI（選択式） ===== */
+let splitMode = false;
+let splitSelected = [true, true, false];
+const SPLIT_LABELS = ['1/3', '2/3', '3/3'];
+
+function updateSplitUI(){
+  for(let i=0;i<3;i++){
+    const btn = $('selPart'+(i+1));
+    if(btn) btn.classList.toggle('active', !!splitSelected[i]);
+  }
+}
+function resetSplitMode(){
+  splitMode = false;
+  splitSelected = [true, true, false];
+  const panel = $('splitPanel');
+  if(panel) panel.hidden = true;
+  const copyRow = $('splitCopyRow');
+  if(copyRow){ copyRow.hidden = true; copyRow.innerHTML = ''; }
+  updateSplitUI();
+}
+
+function joinByTo(labels){
+  if(labels.length === 0) return '';
+  if(labels.length === 1) return labels[0];
+  if(labels.length === 2) return labels[0] + 'と' + labels[1];
+  return labels.slice(0,-1).join('、') + 'と' + labels[labels.length-1];
+}
+
+async function shareSplitSelected(){
   const src = s.html || $('htmlCode').value;
   if(!src || !src.trim()){toast('HTMLがありません');return}
-  const text='この後、HTMLを3回に分けて送信しますので、以下の修正を実施して全コードを提供してください。\n\n'+memoTextForAI();
-  try{await navigator.clipboard.writeText(text)}catch{toast('コピーできませんでした');return}
+
+  const selectedIdx = [];
+  for(let i=0;i<3;i++) if(splitSelected[i]) selectedIdx.push(i);
+  if(!selectedIdx.length){toast('送信するパートを選択してください');return}
+
   const sp = computeSplits(src);
+  const parts = [sp.p1, sp.p2, sp.p3];
+  const selectedLabels = selectedIdx.map(i=>SPLIT_LABELS[i]);
+  const nonSelectedIdx = [0,1,2].filter(i=>!splitSelected[i]);
+  const nonSelectedLabels = nonSelectedIdx.map(i=>SPLIT_LABELS[i]);
+
+  let prompt = '';
+  if(selectedIdx.length === 3){
+    prompt += '以下のHTMLを3分割で送信します。3つを連結すると1つの完全なHTMLになります。\n';
+    prompt += '以下の修正を実施して、全コードを1つのHTMLとして提供してください。\n\n';
+  }else{
+    prompt += 'この後、'+joinByTo(nonSelectedLabels)+'を送信しますので、全部揃うまでは思考や回答をせず、全部揃ってから全コードを以下のとおりに修正して1つのHTMLとして提供してください。\n';
+    prompt += '※今回送信する'+joinByTo(selectedLabels)+'と後で送信する'+joinByTo(nonSelectedLabels)+'を連結すると1つの完全なHTMLになります。\n\n';
+  }
+
+  prompt += '【修正内容】\n' + (memoTextForAI() || '（メモなし）') + '\n\n';
+  prompt += '【今回送信するHTML（'+selectedLabels.join('、')+'）】\n';
+  selectedIdx.forEach(i=>{
+    prompt += '--- '+SPLIT_LABELS[i]+' ---\n'+parts[i]+'\n\n';
+  });
+
+  try{ await navigator.clipboard.writeText(prompt); }
+  catch{ toast('コピーできませんでした'); return; }
+
   const base = sanitizeName(s.name||'アプリ＋');
   const files = [];
   try{
-    if(sp.p1)files.push(new File([sp.p1],base+'_1of3.txt',{type:'text/plain'}));
-    if(sp.p2)files.push(new File([sp.p2],base+'_2of3.txt',{type:'text/plain'}));
-    if(sp.p3)files.push(new File([sp.p3],base+'_3of3.txt',{type:'text/plain'}));
+    selectedIdx.forEach(i=>{
+      files.push(new File([parts[i]], base+'_'+(i+1)+'of3.txt', {type:'text/plain'}));
+    });
   }catch(e){}
+
   try{
     if(navigator.share){
-      const data={title:'HTML改善依頼（3分割）',text};
-      if(files.length&&navigator.canShare&&navigator.canShare({files}))data.files=files;
+      const data = { title:'HTML改善依頼（分割）', text: prompt };
+      if(files.length && navigator.canShare && navigator.canShare({files})) data.files = files;
       await navigator.share(data);
       toast('共有画面を開きました');
     }else{
-      files.forEach(function(f){download(f,f.name)});
+      files.forEach(f=>download(f,f.name));
       toast('依頼文をコピーしファイルを保存しました');
     }
-  }catch(e){if(e.name!=='AbortError')toast('共有に失敗しました。依頼文はコピー済みです')}
+  }catch(e){
+    if(e.name !== 'AbortError') toast('共有に失敗しました。依頼文はコピー済みです');
+  }
+
+  /* 未送信パートにコピーボタンを出現 */
+  const copyRow = $('splitCopyRow');
+  copyRow.innerHTML = '';
+  if(nonSelectedIdx.length){
+    nonSelectedIdx.forEach(i=>{
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.textContent = SPLIT_LABELS[i]+'をコピー';
+      btn.addEventListener('click', function(){
+        copyText(parts[i], SPLIT_LABELS[i]+'をコピーしました');
+      });
+      copyRow.appendChild(btn);
+    });
+    copyRow.hidden = false;
+  }else{
+    copyRow.hidden = true;
+  }
 }
 
 function extractTitle(html){
@@ -911,18 +986,6 @@ $('pasteHtml').onclick=async()=>{
   toast('貼り付けて保存しました');
 };
 
-/* 3分割コピー（連結すると元のHTMLに完全一致） */
-function copySlicePart(idx){
-  const src=$('htmlCode').value;
-  if(!src || !src.trim()){toast('HTMLがありません');return}
-  const sp=computeSplits(src);
-  const part=sp['p'+(idx+1)];
-  copyText(part,(idx+1)+'/3をコピーしました');
-}
-$('copyPart1').onclick=()=>copySlicePart(0);
-$('copyPart2').onclick=()=>copySlicePart(1);
-$('copyPart3').onclick=()=>copySlicePart(2);
-
 $('restoreHtml').onclick=()=>{if(!s.previousHtml){toast('戻せる履歴がありません');return}if(confirm('直前のHTMLを編集欄に戻しますか？')){$('htmlCode').value=s.previousHtml;counts();$('htmlCode').scrollTop=0}};
 
 $('addMemo').onclick=function(){
@@ -955,8 +1018,39 @@ $('copyMemo').onclick=async function(){
   }
 };
 
-$('improve').onclick=share;
-$('improveSplit').onclick=shareSplit;
+/* AI依頼：分割モード中は分割共有、通常は全HTML共有 */
+$('improve').onclick=()=>{
+  if(splitMode) shareSplitSelected();
+  else share();
+};
+
+/* 分割依頼：パネルの開閉トグル */
+$('improveSplit').onclick=()=>{
+  if(splitMode){
+    resetSplitMode();
+    return;
+  }
+  splitMode = true;
+  splitSelected = [true, true, false];
+  updateSplitUI();
+  $('splitPanel').hidden = false;
+  const copyRow = $('splitCopyRow');
+  copyRow.hidden = true;
+  copyRow.innerHTML = '';
+};
+
+/* 分割パート選択トグル */
+for(let i=0;i<3;i++){
+  const btn = $('selPart'+(i+1));
+  if(btn){
+    btn.addEventListener('click', function(){
+      if(!splitMode) return;
+      splitSelected[i] = !splitSelected[i];
+      updateSplitUI();
+    });
+  }
+}
+
 $('export').onclick=exportBackup;
 $('import').onclick=()=>$('backupFile').click();
 $('backupFile').onchange=e=>{if(e.target.files[0])importBackup(e.target.files[0]);e.target.value=''};
