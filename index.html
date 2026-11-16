@@ -160,9 +160,9 @@ h1{font-size:21px;margin:0}h2{font-size:15px;margin:0}p,.hint{font-size:13px;lin
 <button class="primary" id="saveHtml">保存</button>
 </div>
 <div class="row btns3">
-<button id="copyCss">CSSコピー</button>
-<button id="copyHtmlPart">HTMLコピー</button>
-<button id="copyJs">JSコピー</button>
+<button id="copyPart1" title="先頭（head・CSS含む）">1/3コピー</button>
+<button id="copyPart2" title="中間（HTML本文）">2/3コピー</button>
+<button id="copyPart3" title="末尾（JS含む）">3/3コピー</button>
 </div>
 </div>
 </section>
@@ -230,28 +230,12 @@ document.addEventListener('touchend',function(e){
 
 /* ============================================================
    画面回転対策（縦横共通）
-   ------------------------------------------------------------
-   【根本原因】
-   登録HTMLはiframe内で動くため、その中の env(safe-area-inset-*) は
-   iframe自身が再評価する。縦→横の回転直後、iframe側は縦持ち時の
-   上セーフエリア（約50px）のまま1回レイアウトされ、画面全体が下にずれる。
-   親側(このページ)は正しい値をすでに持っているのに、iframeへ伝わるのが
-   遅れるのが原因。従来のタイマーでの再レイアウト(display切替)は
-   後から強制的に正しい値へ直していただけで、ずれ自体は防げなかった。
-
-   【修正】
-   ・登録HTML内の env(safe-area-inset-◯) を、親が計測した値を渡す
-     CSS変数 var(--app-sai-◯) に置き換えて実行する（保存データは無加工）
-   ・親側の見えないプローブで実測した値を、回転中は毎フレーム
-     iframeの変数へ同期する → iframeのレイアウトが親と同じ瞬間に確定する
-   ・display切替・非表示・タイマー再レイアウトは廃止
    ============================================================ */
 let rotRafId=null;
 let rotEndTimer=null;
 let lastOrientation=(window.innerWidth>window.innerHeight)?'landscape':'portrait';
 const SAI_SIDES=['top','right','bottom','left'];
 
-/* セーフエリア計測用プローブ（見えない要素のpaddingでenv()を読む） */
 const probe=document.createElement('div');
 probe.setAttribute('aria-hidden','true');
 probe.style.cssText='position:fixed;left:0;top:0;width:0;height:0;visibility:hidden;pointer-events:none;'
@@ -266,7 +250,6 @@ function readSai(){
 function saiCss(v){
   return ':root{--app-sai-top:'+v.top+';--app-sai-right:'+v.right+';--app-sai-bottom:'+v.bottom+';--app-sai-left:'+v.left+'}';
 }
-/* 親で実測した値をiframeの変数へ反映（値が変わった時だけ書き込む） */
 function syncSai(){
   try{
     const runner=$('runner');
@@ -279,13 +262,11 @@ function syncSai(){
     }
   }catch(e){}
 }
-/* env(safe-area-inset-top[, fallback]) → var(--app-sai-top, fallback) */
 function rewriteEnv(html){
   return String(html).replace(/env\(\s*safe-area-inset-(top|right|bottom|left)\s*(?:,\s*([^()]*?))?\s*\)/gi,function(m,side,fb){
     return 'var(--app-sai-'+side.toLowerCase()+','+((fb&&fb.trim())||'0px')+')';
   });
 }
-/* iframeに渡すHTMLを作る（初回描画から正しい値が入るよう <head> 直後に変数を注入） */
 function buildSrcdoc(html){
   const out=rewriteEnv(html);
   const tag='<style id="__app_plus_sai">'+saiCss(readSai())+'</style>';
@@ -328,7 +309,6 @@ function resetScrollPositions(){
   }catch(e){}
 }
 
-/* 回転中は毎フレーム「スクロール位置リセット＋セーフエリア同期」だけを行う */
 function scheduleViewportFix(){
   clearRotTimers();
   const html=document.documentElement;
@@ -509,8 +489,6 @@ function stage(which){
   $('edge').style.display=which==='run'?'block':'none';
 }
 
-/* iframe内のCSS注入＆背景色抽出
-   横画面でのセーフエリア1フレーム遅延を招く min-height:100dvh は削除 */
 function injectIframeCSS() {
   try {
     var runner = $('runner');
@@ -766,24 +744,71 @@ async function share(){
   try{if(navigator.share&&navigator.canShare?.({files:[f]})){await navigator.share({title:'HTML改善依頼',text,files:[f]});toast('共有画面を開きました')}else{download(f,f.name);toast('依頼文をコピーしHTMLを保存しました')}}catch(e){if(e.name!=='AbortError')toast('共有に失敗しました。依頼文はコピー済みです')}
 }
 
-/* ===== HTML 3分割 ===== */
-function splitHtml(html){
-  const src=String(html||'');
-  const cssParts=[];
-  const jsParts=[];
-  let out=src.replace(/<style\b[^>]*>([\s\S]*?)<\/style\s*>/gi,function(m,body){
-    const t=body.replace(/^\s*\n+|\n+\s*$/g,'').trim();
-    if(t)cssParts.push(t);
-    return '';
-  });
-  out=out.replace(/<script\b([^>]*)>([\s\S]*?)<\/script\s*>/gi,function(m,attrs,body){
-    if(/\bsrc\s*=/i.test(attrs))return m;
-    const t=body.replace(/^\s*\n+|\n+\s*$/g,'').trim();
-    if(t)jsParts.push(t);
-    return '';
-  });
-  out=out.replace(/\n{3,}/g,'\n\n').replace(/[ \t]+\n/g,'\n').trim();
-  return {css:cssParts.join('\n\n'),html:out,js:jsParts.join('\n\n')};
+/* ===== HTML 3分割（連続スライス方式・連結で元に完全一致） ===== */
+// 戻り値: {p1,p2,p3, mode}  p1+p2+p3 === src を保証
+function computeSplits(html){
+  const src = String(html||'');
+  const len = src.length;
+  if(!len) return {p1:'', p2:'', p3:'', mode:'empty'};
+
+  // 最後の </style> の直後
+  let lastStyleEnd = -1;
+  let m;
+  const styleRe = /<\/style\s*>/gi;
+  while((m = styleRe.exec(src)) !== null){
+    lastStyleEnd = m.index + m[0].length;
+  }
+
+  // </style> より後ろで、最初のインライン <script src無し> の直前
+  let firstScriptStart = -1;
+  if(lastStyleEnd >= 0){
+    const scriptRe = /<script\b([^>]*)>/gi;
+    scriptRe.lastIndex = Math.max(0, lastStyleEnd);
+    while((m = scriptRe.exec(src)) !== null){
+      const attrs = m[1] || '';
+      if(/\bsrc\s*=/i.test(attrs)) continue;
+      firstScriptStart = m.index;
+      break;
+    }
+  }
+
+  let c1, c2, mode;
+
+  // 両方の境界がある → 自然分割
+  if(lastStyleEnd > 0 && firstScriptStart > lastStyleEnd && firstScriptStart < len){
+    c1 = lastStyleEnd;
+    c2 = firstScriptStart;
+    mode = 'natural';
+  }
+  // CSS境界のみ → CSS直後で切り、残りを2分割
+  else if(lastStyleEnd > 0 && lastStyleEnd < len - 1){
+    c1 = lastStyleEnd;
+    c2 = lastStyleEnd + Math.floor((len - lastStyleEnd) / 2);
+    mode = 'css-only';
+  }
+  // JS境界のみ → 先頭を2分割し、JS以降を3つ目に
+  else if(firstScriptStart > 1 && firstScriptStart < len){
+    c1 = Math.floor(firstScriptStart / 2);
+    c2 = firstScriptStart;
+    mode = 'js-only';
+  }
+  // 境界なし → 均等3分割
+  else{
+    c1 = Math.floor(len / 3);
+    c2 = Math.floor(len * 2 / 3);
+    mode = 'even';
+  }
+
+  if(c1 < 0) c1 = 0;
+  if(c2 < c1) c2 = c1;
+  if(c2 > len) c2 = len;
+
+  return {
+    p1: src.slice(0, c1),
+    p2: src.slice(c1, c2),
+    p3: src.slice(c2),
+    mode
+  };
 }
 
 async function copyText(t,msg){
@@ -792,15 +817,17 @@ async function copyText(t,msg){
 }
 
 async function shareSplit(){
+  const src = s.html || $('htmlCode').value;
+  if(!src || !src.trim()){toast('HTMLがありません');return}
   const text='この後、HTMLを3回に分けて送信しますので、以下の修正を実施して全コードを提供してください。\n\n'+memoTextForAI();
   try{await navigator.clipboard.writeText(text)}catch{toast('コピーできませんでした');return}
-  const parts=splitHtml(s.html||$('htmlCode').value);
-  const base=sanitizeName(s.name||'アプリ＋');
-  const files=[];
+  const sp = computeSplits(src);
+  const base = sanitizeName(s.name||'アプリ＋');
+  const files = [];
   try{
-    if(parts.css.trim())files.push(new File([parts.css],base+'.css',{type:'text/css'}));
-    if(parts.html.trim())files.push(new File([parts.html],base+'.html',{type:'text/html'}));
-    if(parts.js.trim())files.push(new File([parts.js],base+'.js',{type:'text/javascript'}));
+    if(sp.p1)files.push(new File([sp.p1],base+'_1of3.txt',{type:'text/plain'}));
+    if(sp.p2)files.push(new File([sp.p2],base+'_2of3.txt',{type:'text/plain'}));
+    if(sp.p3)files.push(new File([sp.p3],base+'_3of3.txt',{type:'text/plain'}));
   }catch(e){}
   try{
     if(navigator.share){
@@ -884,10 +911,17 @@ $('pasteHtml').onclick=async()=>{
   toast('貼り付けて保存しました');
 };
 
-/* 3分割コピー */
-$('copyCss').onclick=()=>copyText(splitHtml($('htmlCode').value).css,'CSSをコピーしました');
-$('copyHtmlPart').onclick=()=>copyText(splitHtml($('htmlCode').value).html,'HTMLをコピーしました');
-$('copyJs').onclick=()=>copyText(splitHtml($('htmlCode').value).js,'JSをコピーしました');
+/* 3分割コピー（連結すると元のHTMLに完全一致） */
+function copySlicePart(idx){
+  const src=$('htmlCode').value;
+  if(!src || !src.trim()){toast('HTMLがありません');return}
+  const sp=computeSplits(src);
+  const part=sp['p'+(idx+1)];
+  copyText(part,(idx+1)+'/3をコピーしました');
+}
+$('copyPart1').onclick=()=>copySlicePart(0);
+$('copyPart2').onclick=()=>copySlicePart(1);
+$('copyPart3').onclick=()=>copySlicePart(2);
 
 $('restoreHtml').onclick=()=>{if(!s.previousHtml){toast('戻せる履歴がありません');return}if(confirm('直前のHTMLを編集欄に戻しますか？')){$('htmlCode').value=s.previousHtml;counts();$('htmlCode').scrollTop=0}};
 
