@@ -858,20 +858,17 @@ async function shareSplitSelected(){
   const nonSelectedIdx = [0,1,2].filter(i=>!splitSelected[i]);
   const nonSelectedLabels = nonSelectedIdx.map(i=>SPLIT_LABELS[i]);
 
+  // プロンプトにはコードを含めない（ファイル添付のみ）
   let prompt = '';
   if(selectedIdx.length === 3){
-    prompt += '以下のHTMLを3分割で送信します。3つを連結すると1つの完全なHTMLになります。\n';
+    prompt += 'HTMLを3分割した1/3、2/3、3/3のファイルを添付しました。3つを連結すると1つの完全なHTMLになります。\n';
     prompt += '以下の修正を実施して、全コードを1つのHTMLとして提供してください。\n\n';
   }else{
-    prompt += 'この後、'+joinByTo(nonSelectedLabels)+'を送信しますので、全部揃うまでは思考や回答をせず、全部揃ってから全コードを以下のとおりに修正して1つのHTMLとして提供してください。\n';
-    prompt += '※今回送信する'+joinByTo(selectedLabels)+'と後で送信する'+joinByTo(nonSelectedLabels)+'を連結すると1つの完全なHTMLになります。\n\n';
+    prompt += 'HTMLを3分割したファイルのうち、'+joinByTo(selectedLabels)+'を添付しました。';
+    prompt += 'この後、'+joinByTo(nonSelectedLabels)+'を送信しますので、全部揃うまでは思考や回答をせず、全部揃ってから全コードを以下のとおりに修正して1つのHTMLとして提供してください。\n\n';
+    prompt += '※添付した'+joinByTo(selectedLabels)+'と後で送信する'+joinByTo(nonSelectedLabels)+'を連結すると1つの完全なHTMLになります。\n\n';
   }
-
-  prompt += '【修正内容】\n' + (memoTextForAI() || '（メモなし）') + '\n\n';
-  prompt += '【今回送信するHTML（'+selectedLabels.join('、')+'）】\n';
-  selectedIdx.forEach(i=>{
-    prompt += '--- '+SPLIT_LABELS[i]+' ---\n'+parts[i]+'\n\n';
-  });
+  prompt += '【修正内容】\n' + (memoTextForAI() || '（メモなし）') + '\n';
 
   try{ await navigator.clipboard.writeText(prompt); }
   catch{ toast('コピーできませんでした'); return; }
